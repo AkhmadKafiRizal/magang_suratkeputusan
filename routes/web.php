@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -23,13 +25,26 @@ Route::middleware('guest')->group(function () {
 
         $request->session()->regenerate();
 
-        return redirect()->intended('/dashboard');
+        return match ($request->user()->role) {
+            User::ROLE_KEPALA_BIDANG => redirect()->route('dashboard.kepala-bidang'),
+            User::ROLE_PEGAWAI => redirect()->route('dashboard.pegawai'),
+            default => abort(403, 'Role pengguna tidak dikenali.'),
+        };
     })->name('login.store');
 });
 
-Route::get('/dashboard', function () {
-    return view('welcome');
-})->middleware('auth')->name('dashboard');
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'redirect'])
+        ->name('dashboard');
+
+    Route::get('/dashboard/kepala-bidang', [DashboardController::class, 'kepalaBidang'])
+        ->middleware('role:'.User::ROLE_KEPALA_BIDANG)
+        ->name('dashboard.kepala-bidang');
+
+    Route::get('/dashboard/pegawai', [DashboardController::class, 'pegawai'])
+        ->middleware('role:'.User::ROLE_PEGAWAI)
+        ->name('dashboard.pegawai');
+});
 
 Route::post('/logout', function (Request $request) {
     Auth::logout();
