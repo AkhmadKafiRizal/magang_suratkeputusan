@@ -17,6 +17,10 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    public const ROLE_KEPALA_BIDANG = 'kepala_bidang';
+
+    public const ROLE_PEGAWAI = 'pegawai';
+
     /**
      * Get the attributes that should be cast.
      *
