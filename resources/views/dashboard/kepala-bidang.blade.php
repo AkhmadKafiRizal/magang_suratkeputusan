@@ -110,7 +110,7 @@
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7.5h6l2 2h8v10H4z" stroke-linejoin="round"/><path d="M9 14h6" stroke-linecap="round"/></svg>
                                     </span>
                                     <strong>Belum ada data surat</strong>
-                                    <span>Daftar surat akan muncul setelah data surat tersimpan di sistem.</span>
+                                    <span>Data surat akan tampil setelah tersimpan di sistem.</span>
                                 </div>
                             </td>
                         </tr>
@@ -154,7 +154,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M18 8v6M15 11h6" stroke-linecap="round"/></svg>
                         </span>
                         <strong>Belum ada akun pegawai</strong>
-                        <span>Akun dengan role pegawai akan tampil otomatis di bagian ini.</span>
+                        <span>Akun pegawai akan muncul otomatis di sini.</span>
                     </div>
                 @endforelse
             </div>
@@ -172,8 +172,8 @@
             @forelse ($aktivitasTerbaru as $aktivitas)
                 <div class="activity-item">
                     <span class="activity-marker" aria-hidden="true"></span>
-                    <p>{{ $aktivitas->deskripsi }}</p>
-                    <time>{{ $aktivitas->created_at->diffForHumans() }}</time>
+                    <time datetime="{{ $aktivitas->created_at->toIso8601String() }}">{{ $aktivitas->created_at->format('H:i') }}</time>
+                    <p>&mdash; {{ $aktivitas->deskripsi }}</p>
                 </div>
             @empty
                 <div class="section-empty activity-empty">
@@ -181,7 +181,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5M12 7v5l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </span>
                     <strong>Belum ada aktivitas</strong>
-                    <span>Perubahan status dan penugasan surat akan tercatat di sini.</span>
+                    <span>Pembaruan status dan penugasan akan muncul di sini.</span>
                 </div>
             @endforelse
         </section>
