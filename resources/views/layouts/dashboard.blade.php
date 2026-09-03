@@ -26,6 +26,7 @@
                     $isKepalaBidang = auth()->user()->role === \App\Models\User::ROLE_KEPALA_BIDANG;
                     $dashboardRoute = $isKepalaBidang ? 'dashboard.kepala-bidang' : 'dashboard.pegawai';
                     $dataSuratAktif = request()->routeIs('kepala-bidang.surat.*');
+                    $monitoringPegawaiAktif = request()->routeIs('kepala-bidang.monitoring-pegawai.*');
                     $suratSayaAktif = request()->routeIs('pegawai.surat-saya.*');
                 @endphp
                 <span class="sidebar-nav-label">Menu utama</span>
@@ -38,7 +39,7 @@
                     <span>{{ $isKepalaBidang ? 'Data Surat' : 'Surat Saya' }}</span>
                 </a>
                 @if ($isKepalaBidang)
-                    <a class="sidebar-link" href="{{ route('dashboard.kepala-bidang') }}#monitoring">
+                    <a class="sidebar-link {{ $monitoringPegawaiAktif ? 'is-active' : '' }}" href="{{ route('kepala-bidang.monitoring-pegawai.index') }}" @if ($monitoringPegawaiAktif) aria-current="page" @endif>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 11h5M19.5 8.5v5" stroke-linecap="round"/></svg>
                         <span>Monitoring Pegawai</span>
                     </a>

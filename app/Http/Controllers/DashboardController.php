@@ -44,14 +44,11 @@ class DashboardController extends Controller
         ];
 
         $pegawai = User::query()
+            ->select(['id', 'name', 'email'])
             ->where('role', User::ROLE_PEGAWAI)
-            ->withCount([
-                'suratDitangani as sedang_diproses_count' => fn ($query) => $query->where('status', Surat::STATUS_SEDANG_DIPROSES),
-                'suratDitangani as selesai_count' => fn ($query) => $query->where('status', Surat::STATUS_SELESAI),
-                'suratDitangani as total_ditangani_count',
-            ])
+            ->withMonitoringCounts()
             ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+            ->get();
 
         $suratTerbaru = Surat::query()
             ->with('pegawai:id,name')

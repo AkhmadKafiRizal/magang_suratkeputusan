@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MonitoringPegawaiController;
 use App\Http\Controllers\SuratController;
 use App\Http\Controllers\SuratSayaController;
 use App\Models\User;
@@ -58,6 +59,15 @@ Route::middleware('auth')->group(function () {
             Route::get('/{surat}', 'show')->name('show');
             Route::get('/{surat}/edit', 'edit')->name('edit');
             Route::put('/{surat}', 'update')->name('update');
+        });
+
+    Route::middleware('role:'.User::ROLE_KEPALA_BIDANG)
+        ->prefix('kepala-bidang/monitoring-pegawai')
+        ->name('kepala-bidang.monitoring-pegawai.')
+        ->controller(MonitoringPegawaiController::class)
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/{pegawai}', 'show')->name('show');
         });
 
     Route::middleware('role:'.User::ROLE_PEGAWAI)

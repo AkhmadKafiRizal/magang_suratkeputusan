@@ -124,7 +124,7 @@
         <section class="content-card" id="monitoring" aria-labelledby="monitoring-title">
             <div class="card-heading">
                 <div>
-                    <span class="section-kicker">Kinerja tim</span>
+                    <span class="section-kicker">Beban kerja tim</span>
                     <h2 id="monitoring-title">Monitoring Pegawai</h2>
                     <p>Lihat beban kerja dan progres setiap pegawai secara ringkas.</p>
                 </div>
@@ -146,7 +146,7 @@
                             <span><small>Selesai</small><strong>{{ $anggota->selesai_count }}</strong></span>
                             <span><small>Total Ditangani</small><strong>{{ $anggota->total_ditangani_count }}</strong></span>
                         </div>
-                        <a class="secondary-button" href="{{ route('kepala-bidang.surat.index', ['pegawai' => $anggota->id]) }}">Lihat Detail</a>
+                        <a class="secondary-button" href="{{ route('kepala-bidang.monitoring-pegawai.show', $anggota) }}">Lihat Detail</a>
                     </article>
                 @empty
                     <div class="section-empty">
