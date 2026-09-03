@@ -9,7 +9,7 @@
         <div>
             <span class="section-kicker">Ruang kerja pegawai</span>
             <h2 id="intro-title">Kelola surat yang menjadi tanggung jawab Anda.</h2>
-            <p>Daftar tugas akan muncul di sini setelah data surat tersedia dan ditugaskan.</p>
+            <p>Lihat surat yang ditugaskan dan perbarui progres pekerjaan Anda.</p>
         </div>
         <div class="intro-date" aria-label="Tanggal hari ini">
             <span class="intro-date-icon" aria-hidden="true">
@@ -37,13 +37,32 @@
     <section class="content-card" id="surat" aria-labelledby="surat-title">
         <div class="card-heading">
             <div><span class="section-kicker">Daftar pekerjaan</span><h2 id="surat-title">Surat Saya</h2><p>Surat yang ditugaskan kepada Anda akan tampil di bagian ini.</p></div>
-            <span class="record-count">0 surat</span>
+            <a class="outline-button compact-button" href="{{ route('pegawai.surat-saya.index') }}">Lihat Semua</a>
         </div>
-        <div class="section-empty employee-page-empty">
-            <span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7.5h6l2 2h8v10H4z" stroke-linejoin="round"/><path d="M9 14h6" stroke-linecap="round"/></svg></span>
-            <strong>Belum ada surat yang ditugaskan</strong>
-            <span>Tugas baru dari Kepala Bidang akan muncul di sini.</span>
-        </div>
+        @if ($suratSaya->isEmpty())
+            <div class="section-empty employee-page-empty">
+                <span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7.5h6l2 2h8v10H4z" stroke-linejoin="round"/><path d="M9 14h6" stroke-linecap="round"/></svg></span>
+                <strong>Belum ada surat yang ditugaskan</strong>
+                <span>Tugas baru dari Kepala Bidang akan muncul di sini.</span>
+            </div>
+        @else
+            <div class="table-scroll">
+                <table class="letters-table employee-letters-table">
+                    <thead><tr><th>Nomor Surat</th><th>Tanggal Masuk</th><th>Perihal</th><th>Status</th><th>Aksi</th></tr></thead>
+                    <tbody>
+                        @foreach ($suratSaya as $surat)
+                            <tr>
+                                <td><strong>{{ $surat->nomor_surat }}</strong></td>
+                                <td>{{ $surat->tanggal_masuk->locale('id')->translatedFormat('d M Y') }}</td>
+                                <td class="table-text-wide">{{ $surat->perihal }}</td>
+                                <td><span class="status-badge status-{{ $surat->status }}">{{ $surat->status_label }}</span></td>
+                                <td><a class="table-action" href="{{ route('pegawai.surat-saya.show', $surat) }}">Detail</a></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </section>
 
     <section class="content-card employee-activity" id="aktivitas" aria-labelledby="aktivitas-title">
