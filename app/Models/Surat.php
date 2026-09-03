@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'nomor_surat',
@@ -41,6 +42,16 @@ class Surat extends Model
     public function pegawai(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pegawai_id');
+    }
+
+    /**
+     * Riwayat perubahan dan progres surat.
+     *
+     * @return HasMany<AktivitasSurat, $this>
+     */
+    public function aktivitas(): HasMany
+    {
+        return $this->hasMany(AktivitasSurat::class);
     }
 
     /**

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#174ea6">
     <title>Masuk — Sistem Arsip Surat</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         :root {
             --blue-900: #103b74;
@@ -46,8 +47,71 @@
             isolation: isolate;
         }
 
+        .sky-effects {
+            position: absolute;
+            z-index: 0;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .twinkle-star,
+        .shooting-star {
+            position: absolute;
+            display: block;
+            border-radius: 50%;
+            background: #fff;
+            pointer-events: none;
+        }
+
+        .twinkle-star {
+            width: var(--star-size, 2px);
+            height: var(--star-size, 2px);
+            opacity: .2;
+            box-shadow: 0 0 7px rgba(255, 255, 255, .86);
+            animation: star-twinkle var(--twinkle-duration, 2.8s) ease-in-out infinite;
+            animation-delay: var(--twinkle-delay, 0s);
+        }
+
+        .shooting-star {
+            top: var(--star-top, -8%);
+            left: var(--star-left, 110%);
+            width: 3px;
+            height: 3px;
+            opacity: 0;
+            box-shadow: 0 0 9px #fff, 0 0 18px rgba(191, 222, 255, .92), 0 0 28px rgba(111, 179, 255, .66);
+            animation: shooting-star-fall var(--fall-duration, 4s) linear infinite;
+            animation-delay: var(--fall-delay, 0s);
+        }
+
+        .shooting-star::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            width: var(--trail-length, 52px);
+            height: 1px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, .96), transparent);
+            transform: translateY(-50%);
+            transform-origin: left center;
+        }
+
+        @keyframes star-twinkle {
+            0%, 100% { opacity: .16; transform: scale(.75); }
+            48% { opacity: .92; transform: scale(1.28); }
+            62% { opacity: .48; transform: scale(1); }
+        }
+
+        @keyframes shooting-star-fall {
+            0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(-45deg); }
+            8% { opacity: 1; }
+            72% { opacity: .9; }
+            100% { opacity: 0; transform: translate3d(-620px, 620px, 0) rotate(-45deg); }
+        }
+
         .login-panel {
             position: relative;
+            z-index: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -204,6 +268,8 @@
         input:hover { border-color: #aabbd0; }
         input:focus { border-color: var(--blue-700); box-shadow: 0 0 0 4px rgba(29, 99, 183, .13); }
         input::placeholder { color: #98a4b3; }
+        input[aria-invalid="true"] { border-color: #c85252; box-shadow: 0 0 0 4px rgba(200, 82, 82, .1); }
+        input[aria-invalid="true"]:focus { border-color: #b63d3d; box-shadow: 0 0 0 4px rgba(182, 61, 61, .15); }
 
         .toggle-password {
             position: absolute;
@@ -222,7 +288,7 @@
             transform: translateY(-50%);
         }
 
-        .toggle-password:hover, .toggle-password:focus-visible { color: var(--blue-800); background: var(--blue-100); }
+        .toggle-password:hover, .toggle-password:focus-visible { color: var(--blue-800); background: var(--blue-100); outline: 3px solid rgba(29, 99, 183, .13); outline-offset: 1px; }
         .toggle-password svg { width: 21px; height: 21px; }
 
         .error {
@@ -279,8 +345,9 @@
             transition: background .18s, transform .18s, box-shadow .18s;
         }
 
-        .submit:hover { background: var(--blue-800); box-shadow: 0 11px 24px rgba(23, 79, 149, .25); transform: translateY(-1px); }
-        .submit:active { transform: translateY(0); }
+        .submit:hover:not(:disabled) { background: var(--blue-800); box-shadow: 0 11px 24px rgba(23, 79, 149, .25); transform: translateY(-1px); }
+        .submit:focus-visible { outline: 4px solid rgba(29, 99, 183, .2); outline-offset: 2px; }
+        .submit:active:not(:disabled) { transform: translateY(0) scale(.99); }
         .submit svg { width: 20px; height: 20px; }
 
         .safe-note {
@@ -312,6 +379,7 @@
 
         .visual {
             position: relative;
+            z-index: 1;
             min-height: 100vh;
             overflow: hidden;
             color: #fff;
@@ -418,10 +486,18 @@
             .panel-foot { text-align: center; }
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            .twinkle-star { animation: none; opacity: .42; }
+            .shooting-star { display: none; }
+        }
+
     </style>
 </head>
 <body>
+    <x-toast />
     <main class="page">
+        <div id="stars-container" class="sky-effects" aria-hidden="true"></div>
+
         <section class="login-panel" aria-labelledby="login-title">
             <div class="form-wrap">
                 <a class="brand" href="{{ route('login') }}" aria-label="Sistem Arsip Surat Bapenda Kabupaten Jember">
@@ -441,36 +517,29 @@
                 <h1 id="login-title">Halo Kakak Comel</h1>
                 <p class="intro">Silakan masuk untuk mencatat, mengarsipkan atau melihat perkembangan surat yang sedang diproses.</p>
 
-                @if ($errors->any())
-                    <div class="alert" role="alert">
-                        <span aria-hidden="true">&#9888;</span>
-                        <span>Email atau kata sandi belum tepat. Silakan periksa kembali isian Kakak.</span>
-                    </div>
-                @endif
-
-                <form method="POST" action="{{ route('login.store') }}">
+                <form method="POST" action="{{ route('login.store') }}" data-loading-form>
                     @csrf
                     <div class="field">
                         <label for="email">Alamat email</label>
                         <div class="input-shell">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16v12H4z" stroke-linejoin="round"/><path d="m4 7 8 6 8-6" stroke-linejoin="round"/></svg>
-                            <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="Contoh: nama@kantor.go.id" autocomplete="email" required autofocus>
+                            <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="Contoh: nama@kantor.go.id" autocomplete="email" required autofocus @if($errors->has('email')) aria-invalid="true" aria-describedby="email-error" @endif>
                         </div>
                         <span class="hint">Masukkan email yang sudah didaftarkan oleh admin.</span>
-                        @error('email')<span class="error">{{ $message }}</span>@enderror
+                        @error('email')<span class="error" id="email-error">{{ $message }}</span>@enderror
                     </div>
 
                     <div class="field">
                         <label for="password">Kata sandi</label>
                         <div class="input-shell">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-                            <input id="password" name="password" type="password" placeholder="Masukkan kata sandi" autocomplete="current-password" required>
+                            <input id="password" name="password" type="password" placeholder="Masukkan kata sandi" autocomplete="current-password" required @if($errors->has('password')) aria-invalid="true" aria-describedby="password-error" @endif>
                             <button class="toggle-password" type="button" aria-label="Tampilkan kata sandi" aria-pressed="false">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5Z"/><circle cx="12" cy="12" r="2.5"/></svg>
                             </button>
                         </div>
                         <span class="hint">Tekan ikon mata di sebelah kanan untuk melihat kata sandi.</span>
-                        @error('password')<span class="error">{{ $message }}</span>@enderror
+                        @error('password')<span class="error" id="password-error">{{ $message }}</span>@enderror
                     </div>
 
                     <div class="options">
@@ -481,7 +550,7 @@
                         <a class="help-link" href="mailto:admin@example.com?subject=Bantuan%20masuk%20Sistem%20Arsip%20Surat">Lupa kata sandi?</a>
                     </div>
 
-                    <button class="submit" type="submit">
+                    <button class="submit" type="submit" data-loading-label="Memproses...">
                         Masuk ke Sistem Arsip
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M14 7l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
@@ -519,6 +588,39 @@
             toggle.setAttribute('aria-pressed', String(!isVisible));
             toggle.setAttribute('aria-label', isVisible ? 'Tampilkan kata sandi' : 'Sembunyikan kata sandi');
         });
+
+        const starsContainer = document.querySelector('#stars-container');
+
+        if (starsContainer) {
+            const compactScreen = window.matchMedia('(max-width: 560px)').matches;
+            const twinkleCount = compactScreen ? 24 : 46;
+            const shootingStarCount = compactScreen ? 7 : 13;
+
+            for (let index = 0; index < twinkleCount; index += 1) {
+                const star = document.createElement('span');
+                const size = (Math.random() * 1.8 + 1).toFixed(2);
+
+                star.className = 'twinkle-star';
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.setProperty('--star-size', `${size}px`);
+                star.style.setProperty('--twinkle-duration', `${(Math.random() * 2.6 + 1.8).toFixed(2)}s`);
+                star.style.setProperty('--twinkle-delay', `${(Math.random() * -4).toFixed(2)}s`);
+                starsContainer.appendChild(star);
+            }
+
+            for (let index = 0; index < shootingStarCount; index += 1) {
+                const star = document.createElement('span');
+
+                star.className = 'shooting-star';
+                star.style.setProperty('--star-left', `${Math.floor(Math.random() * 105 + 35)}%`);
+                star.style.setProperty('--star-top', `${Math.floor(Math.random() * -50)}%`);
+                star.style.setProperty('--fall-duration', `${(Math.random() * 3 + 3.4).toFixed(2)}s`);
+                star.style.setProperty('--fall-delay', `${(Math.random() * 7).toFixed(2)}s`);
+                star.style.setProperty('--trail-length', `${Math.floor(Math.random() * 42 + 38)}px`);
+                starsContainer.appendChild(star);
+            }
+        }
     </script>
 </body>
 </html>

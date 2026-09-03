@@ -10,6 +10,20 @@ class RoleDashboardTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_login_page_keeps_the_login_form_and_renders_the_star_effect_layer(): void
+    {
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('id="stars-container"', false)
+            ->assertSee('class="sky-effects"', false)
+            ->assertSee("star.className = 'twinkle-star'", false)
+            ->assertSee("star.className = 'shooting-star'", false)
+            ->assertSee('method="POST"', false)
+            ->assertSee('action="'.route('login.store').'"', false)
+            ->assertSee('name="email"', false)
+            ->assertSee('name="password"', false);
+    }
+
     public function test_guest_cannot_open_any_dashboard_directly(): void
     {
         $this->get(route('dashboard'))->assertRedirect(route('login'));

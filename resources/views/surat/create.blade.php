@@ -14,10 +14,11 @@
     </section>
 
     <section class="content-card form-card form-card-compact">
-        <form method="POST" action="{{ route('kepala-bidang.surat.store') }}" novalidate>
+        <form method="POST" action="{{ route('kepala-bidang.surat.store') }}" data-loading-form data-dirty-form>
             @csrf
             @include('surat._form', [
                 'submitLabel' => 'Simpan Surat',
+                'loadingLabel' => 'Menyimpan...',
                 'cancelUrl' => route('kepala-bidang.surat.index'),
             ])
         </form>

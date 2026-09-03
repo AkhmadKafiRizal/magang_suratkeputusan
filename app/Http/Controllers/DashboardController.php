@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AktivitasSurat;
 use App\Models\Surat;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 
 class DashboardController extends Controller
 {
@@ -56,7 +55,15 @@ class DashboardController extends Controller
             ->limit(7)
             ->get();
 
-        $aktivitasTerbaru = $this->aktivitasSuratTerbaru();
+        $aktivitasTerbaru = AktivitasSurat::query()
+            ->with([
+                'actor:id,name',
+                'surat:id,nomor_surat',
+            ])
+            ->latest('created_at')
+            ->latest('id')
+            ->limit(6)
+            ->get();
 
         return view('dashboard.kepala-bidang', [
             'ringkasan' => $ringkasan,
@@ -88,61 +95,5 @@ class DashboardController extends Controller
             ],
             'suratSaya' => (clone $suratPegawai)->latest()->limit(7)->get(),
         ]);
-    }
-
-    /**
-     * Bentuk aktivitas ringkas dari timestamp surat tanpa menyimpan activity log baru.
-     *
-     * @return Collection<int, object{waktu: Carbon, deskripsi: string}>
-     */
-    private function aktivitasSuratTerbaru(): Collection
-    {
-        return Surat::query()
-            ->with('pegawai:id,name')
-            ->where(function ($query): void {
-                $query->whereNotNull('ditugaskan_pada')
-                    ->orWhereNotNull('mulai_diproses_pada')
-                    ->orWhereNotNull('selesai_pada');
-            })
-            ->orderByRaw('COALESCE(selesai_pada, mulai_diproses_pada, ditugaskan_pada) DESC')
-            ->limit(6)
-            ->get([
-                'id',
-                'nomor_surat',
-                'pegawai_id',
-                'ditugaskan_pada',
-                'mulai_diproses_pada',
-                'selesai_pada',
-            ])
-            ->flatMap(function (Surat $surat): array {
-                $namaPegawai = $surat->pegawai?->name ?? 'Pegawai terkait';
-                $aktivitas = [];
-
-                if ($surat->ditugaskan_pada !== null) {
-                    $aktivitas[] = (object) [
-                        'waktu' => $surat->ditugaskan_pada,
-                        'deskripsi' => "Surat {$surat->nomor_surat} ditugaskan kepada {$namaPegawai}",
-                    ];
-                }
-
-                if ($surat->mulai_diproses_pada !== null) {
-                    $aktivitas[] = (object) [
-                        'waktu' => $surat->mulai_diproses_pada,
-                        'deskripsi' => "{$namaPegawai} mulai memproses surat {$surat->nomor_surat}",
-                    ];
-                }
-
-                if ($surat->selesai_pada !== null) {
-                    $aktivitas[] = (object) [
-                        'waktu' => $surat->selesai_pada,
-                        'deskripsi' => "{$namaPegawai} menyelesaikan surat {$surat->nomor_surat}",
-                    ];
-                }
-
-                return $aktivitas;
-            })
-            ->sortByDesc(fn (object $aktivitas): int => $aktivitas->waktu->getTimestamp())
-            ->take(6)
-            ->values();
     }
 }

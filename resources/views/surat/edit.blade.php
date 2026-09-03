@@ -14,11 +14,20 @@
     </section>
 
     <section class="content-card form-card form-card-compact">
-        <form method="POST" action="{{ route('kepala-bidang.surat.update', $surat) }}" novalidate>
+        <form
+            method="POST"
+            action="{{ route('kepala-bidang.surat.update', $surat) }}"
+            data-loading-form
+            data-dirty-form
+            data-assignment-confirm
+            data-initial-pegawai-id="{{ $surat->pegawai_id }}"
+            data-initial-pegawai-name="{{ $surat->pegawai?->name }}"
+        >
             @csrf
             @method('PUT')
             @include('surat._form', [
                 'submitLabel' => 'Simpan Perubahan',
+                'loadingLabel' => 'Memperbarui...',
                 'cancelUrl' => route('kepala-bidang.surat.show', $surat),
             ])
         </form>

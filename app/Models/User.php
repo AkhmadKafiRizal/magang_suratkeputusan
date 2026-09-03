@@ -33,6 +33,16 @@ class User extends Authenticatable
         return $this->hasMany(Surat::class, 'pegawai_id');
     }
 
+    /**
+     * Aktivitas surat yang dilakukan pengguna sebagai actor.
+     *
+     * @return HasMany<AktivitasSurat, $this>
+     */
+    public function aktivitasSurat(): HasMany
+    {
+        return $this->hasMany(AktivitasSurat::class, 'user_id');
+    }
+
     public function scopeWithMonitoringCounts(Builder $query): Builder
     {
         return $query->withCount([

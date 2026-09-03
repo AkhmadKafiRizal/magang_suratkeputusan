@@ -13,10 +13,6 @@
         </div>
     </section>
 
-    @if (session('success'))
-        <div class="alert alert-success" role="status">{{ session('success') }}</div>
-    @endif
-
     <section class="content-card letters-card data-letters-card" aria-label="Daftar surat saya">
         @if ($surats->isEmpty())
             <div class="section-empty employee-page-empty">

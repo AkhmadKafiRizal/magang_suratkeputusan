@@ -10,6 +10,9 @@
 <body class="dashboard-body">
     <div class="dashboard-shell" data-dashboard-shell>
         <aside class="dashboard-sidebar" id="dashboard-sidebar" aria-label="Navigasi utama">
+            <button class="sidebar-close-button" type="button" data-sidebar-close aria-label="Tutup menu navigasi">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" stroke-linecap="round"/></svg>
+            </button>
             <div class="sidebar-brand">
                 <div class="sidebar-logos" aria-hidden="true">
                     <img src="{{ asset('images/logo-pemkab-jember.png') }}" alt="">
@@ -27,6 +30,7 @@
                     $dashboardRoute = $isKepalaBidang ? 'dashboard.kepala-bidang' : 'dashboard.pegawai';
                     $dataSuratAktif = request()->routeIs('kepala-bidang.surat.*');
                     $monitoringPegawaiAktif = request()->routeIs('kepala-bidang.monitoring-pegawai.*');
+                    $riwayatAktif = request()->routeIs('kepala-bidang.riwayat-aktivitas.*');
                     $suratSayaAktif = request()->routeIs('pegawai.surat-saya.*');
                 @endphp
                 <span class="sidebar-nav-label">Menu utama</span>
@@ -44,7 +48,7 @@
                         <span>Monitoring Pegawai</span>
                     </a>
                 @endif
-                <a class="sidebar-link" href="{{ route($dashboardRoute) }}#aktivitas">
+                <a class="sidebar-link {{ $riwayatAktif ? 'is-active' : '' }}" href="{{ $isKepalaBidang ? route('kepala-bidang.riwayat-aktivitas.index') : route($dashboardRoute).'#aktivitas' }}" @if ($riwayatAktif) aria-current="page" @endif>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5M12 7v5l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <span>Riwayat / Aktivitas</span>
                 </a>
@@ -58,9 +62,17 @@
                         <small>@yield('roleLabel')</small>
                     </span>
                 </div>
-                <form method="POST" action="{{ route('logout') }}">
+                <form
+                    method="POST"
+                    action="{{ route('logout') }}"
+                    data-loading-form
+                    data-confirm-title="Keluar dari Sistem?"
+                    data-confirm-message="Anda akan keluar dari sesi saat ini."
+                    data-confirm-label="Ya, Keluar"
+                    data-confirm-loading-label="Mengeluarkan..."
+                >
                     @csrf
-                    <button class="logout-button" type="submit">
+                    <button class="logout-button" type="submit" data-loading-label="Mengeluarkan...">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5" stroke-linecap="round"/></svg>
                         <span>Logout</span>
                     </button>
@@ -89,6 +101,7 @@
             </header>
 
             <main class="dashboard-main">
+                <x-toast />
                 @yield('content')
                 <footer class="dashboard-footer">
                     <span>&copy; {{ date('Y') }} Sistem Arsip Surat</span>
@@ -97,5 +110,6 @@
             </main>
         </div>
     </div>
+    <x-confirmation-modal />
 </body>
 </html>

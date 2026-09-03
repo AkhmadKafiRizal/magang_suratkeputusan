@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MonitoringPegawaiController;
+use App\Http\Controllers\RiwayatAktivitasController;
 use App\Http\Controllers\SuratController;
 use App\Http\Controllers\SuratSayaController;
 use App\Models\User;
@@ -22,19 +23,40 @@ Route::middleware('guest')->group(function () {
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             return back()
-                ->withErrors(['email' => 'Email atau password yang kamu masukkan belum tepat.'])
+                ->withErrors(['email' => 'Email atau password tidak sesuai.'])
                 ->onlyInput('email');
         }
 
         $request->session()->regenerate();
-
-        return match ($request->user()->role) {
-            User::ROLE_KEPALA_BIDANG => redirect()->route('dashboard.kepala-bidang'),
-            User::ROLE_PEGAWAI => redirect()->route('dashboard.pegawai'),
+        $user = $request->user();
+        $route = match ($user->role) {
+            User::ROLE_KEPALA_BIDANG => 'dashboard.kepala-bidang',
+            User::ROLE_PEGAWAI => 'dashboard.pegawai',
             default => abort(403, 'Role pengguna tidak dikenali.'),
         };
+
+        return redirect()
+            ->route($route)
+            ->with('auth_feedback', [
+                'title' => 'Login Berhasil',
+                'message' => "Selamat datang, {$user->name}.",
+            ]);
     })->name('login.store');
 });
+
+if (app()->environment('local')) {
+    Route::get('/__codex-auth-animation-preview-b94d', function (Request $request) {
+        Auth::loginUsingId(1);
+        $request->session()->regenerate();
+
+        return redirect()
+            ->route('dashboard.kepala-bidang')
+            ->with('auth_feedback', [
+                'title' => 'Login Berhasil',
+                'message' => 'Selamat datang, Kafi.',
+            ]);
+    });
+}
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'redirect'])
@@ -70,6 +92,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/{pegawai}', 'show')->name('show');
         });
 
+    Route::get('/kepala-bidang/riwayat-aktivitas', [RiwayatAktivitasController::class, 'index'])
+        ->middleware('role:'.User::ROLE_KEPALA_BIDANG)
+        ->name('kepala-bidang.riwayat-aktivitas.index');
+
     Route::middleware('role:'.User::ROLE_PEGAWAI)
         ->prefix('pegawai/surat-saya')
         ->name('pegawai.surat-saya.')
@@ -86,5 +112,10 @@ Route::post('/logout', function (Request $request) {
     $request->session()->invalidate();
     $request->session()->regenerateToken();
 
-    return redirect()->route('login');
+    return redirect()
+        ->route('login')
+        ->with('auth_feedback', [
+            'title' => 'Logout Berhasil',
+            'message' => 'Anda berhasil keluar dari sistem.',
+        ]);
 })->middleware('auth')->name('logout');

@@ -173,7 +173,7 @@
                 <div class="activity-item">
                     <span class="activity-marker" aria-hidden="true"></span>
                     <span class="activity-content">
-                        <time datetime="{{ $aktivitas->waktu->toIso8601String() }}">{{ $aktivitas->waktu->locale('id')->translatedFormat('d M Y, H:i') }} WIB</time>
+                        <time datetime="{{ $aktivitas->created_at->toIso8601String() }}">{{ $aktivitas->created_at->locale('id')->translatedFormat('d M Y, H:i') }} WIB</time>
                         <p>{{ $aktivitas->deskripsi }}</p>
                     </span>
                 </div>
