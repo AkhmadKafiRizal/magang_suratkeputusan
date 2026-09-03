@@ -5,6 +5,10 @@
 @section('roleLabel', 'Kepala Bidang')
 
 @section('content')
+    @php
+        $filterAktif = filled(request('search')) || filled(request('status')) || filled(request('pegawai'));
+    @endphp
+
     <section class="page-heading" aria-labelledby="data-surat-title">
         <div>
             <span class="section-kicker">Manajemen surat</span>
@@ -16,10 +20,6 @@
             Tambah Surat
         </a>
     </section>
-
-    @if (session('success'))
-        <div class="alert alert-success" role="status">{{ session('success') }}</div>
-    @endif
 
     <section class="content-card filter-card" aria-label="Pencarian dan filter surat">
         <form class="filter-form" method="GET" action="{{ route('kepala-bidang.surat.index') }}">
@@ -53,8 +53,11 @@
                 </select>
             </div>
             <div class="filter-actions">
+                @if ($filterAktif)
+                    <span class="filter-active-indicator">Filter aktif</span>
+                @endif
                 <button class="primary-button" type="submit">Terapkan</button>
-                @if (request()->hasAny(['search', 'status', 'pegawai']))
+                @if ($filterAktif)
                     <a class="outline-button" href="{{ route('kepala-bidang.surat.index') }}">Reset</a>
                 @endif
             </div>
@@ -77,8 +80,8 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7.5h6l2 2h8v10H4z" stroke-linejoin="round"/><path d="M9 14h6" stroke-linecap="round"/></svg>
                 </span>
                 <strong>Belum ada data surat</strong>
-                <span>{{ request()->hasAny(['search', 'status', 'pegawai']) ? 'Tidak ada surat yang cocok dengan pencarian atau filter.' : 'Tambahkan surat pertama untuk mulai melakukan pencatatan dan penugasan.' }}</span>
-                <a class="primary-button" href="{{ route('kepala-bidang.surat.create') }}">Tambah Surat</a>
+                <span>{{ $filterAktif ? 'Tidak ada surat yang sesuai dengan pencarian atau filter.' : 'Tambahkan surat pertama untuk mulai melakukan pencatatan dan penugasan.' }}</span>
+                <a class="primary-button" href="{{ $filterAktif ? route('kepala-bidang.surat.index') : route('kepala-bidang.surat.create') }}">{{ $filterAktif ? 'Reset Filter' : 'Tambah Surat' }}</a>
             </div>
         @else
             <div class="table-scroll">

@@ -14,26 +14,31 @@
         <div class="page-actions">
             <a class="outline-button" href="{{ route('pegawai.surat-saya.index') }}">Kembali</a>
             @if ($surat->status === \App\Models\Surat::STATUS_BELUM_DITANGANI)
-                <form method="POST" action="{{ route('pegawai.surat-saya.update-status', $surat) }}">
+                <form method="POST" action="{{ route('pegawai.surat-saya.update-status', $surat) }}" data-loading-form>
                     @csrf
                     @method('PATCH')
                     <input name="status" type="hidden" value="{{ \App\Models\Surat::STATUS_SEDANG_DIPROSES }}">
-                    <button class="primary-button" type="submit">Mulai Proses</button>
+                    <button class="primary-button" type="submit" data-loading-label="Memproses...">Mulai Proses</button>
                 </form>
             @elseif ($surat->status === \App\Models\Surat::STATUS_SEDANG_DIPROSES)
-                <form method="POST" action="{{ route('pegawai.surat-saya.update-status', $surat) }}">
+                <form
+                    method="POST"
+                    action="{{ route('pegawai.surat-saya.update-status', $surat) }}"
+                    data-loading-form
+                    data-confirm-title="Tandai Surat Selesai?"
+                    data-confirm-message="Setelah surat ditandai selesai, status tidak dapat dikembalikan melalui workflow saat ini."
+                    data-confirm-label="Ya, Tandai Selesai"
+                    data-confirm-loading-label="Menyelesaikan..."
+                >
                     @csrf
                     @method('PATCH')
                     <input name="status" type="hidden" value="{{ \App\Models\Surat::STATUS_SELESAI }}">
-                    <button class="primary-button" type="submit">Tandai Selesai</button>
+                    <button class="primary-button" type="submit" data-loading-label="Menyelesaikan...">Tandai Selesai</button>
                 </form>
             @endif
         </div>
     </section>
 
-    @if (session('success'))
-        <div class="alert alert-success" role="status">{{ session('success') }}</div>
-    @endif
     @error('status')
         <div class="alert alert-error" role="alert">{{ $message }}</div>
     @enderror

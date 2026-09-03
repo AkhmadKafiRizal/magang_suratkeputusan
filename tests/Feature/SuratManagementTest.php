@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AktivitasSurat;
 use App\Models\Surat;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -461,7 +462,7 @@ class SuratManagementTest extends TestCase
             ]);
     }
 
-    public function test_dashboard_activity_is_derived_from_surat_timestamps_and_sorted_newest_first(): void
+    public function test_dashboard_activity_uses_official_activity_records_sorted_newest_first(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
         $surat = Surat::factory()->create([
@@ -471,6 +472,29 @@ class SuratManagementTest extends TestCase
             'ditugaskan_pada' => now()->subMinutes(30),
             'mulai_diproses_pada' => now()->subMinutes(20),
             'selesai_pada' => now()->subMinutes(10),
+        ]);
+        $surat->aktivitas()->createMany([
+            [
+                'user_id' => $pegawai->id,
+                'tipe' => AktivitasSurat::TIPE_PEGAWAI_DITUGASKAN,
+                'deskripsi' => "Surat {$surat->nomor_surat} ditugaskan kepada Revina",
+                'created_at' => now()->subMinutes(30),
+                'updated_at' => now()->subMinutes(30),
+            ],
+            [
+                'user_id' => $pegawai->id,
+                'tipe' => AktivitasSurat::TIPE_MULAI_DIPROSES,
+                'deskripsi' => "Revina mulai memproses surat {$surat->nomor_surat}",
+                'created_at' => now()->subMinutes(20),
+                'updated_at' => now()->subMinutes(20),
+            ],
+            [
+                'user_id' => $pegawai->id,
+                'tipe' => AktivitasSurat::TIPE_SELESAI,
+                'deskripsi' => "Revina menyelesaikan surat {$surat->nomor_surat}",
+                'created_at' => now()->subMinutes(10),
+                'updated_at' => now()->subMinutes(10),
+            ],
         ]);
 
         $this->actingAs($this->kepalaBidang())
@@ -484,7 +508,7 @@ class SuratManagementTest extends TestCase
             ->assertDontSee('Belum ada aktivitas');
     }
 
-    public function test_missing_timestamps_do_not_create_fake_dashboard_activities(): void
+    public function test_timestamps_without_official_records_do_not_create_dashboard_activities(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
         Surat::factory()->create([
@@ -500,16 +524,26 @@ class SuratManagementTest extends TestCase
             ->assertDontSee('Revina mulai memproses surat TANPA-AKTIVITAS');
     }
 
-    public function test_dashboard_activity_is_limited_to_six_events(): void
+    public function test_dashboard_activity_is_limited_to_six_official_records(): void
     {
         $pegawai = $this->pegawai();
-        Surat::factory()->count(3)->create([
+        $surat = Surat::factory()->create([
             'pegawai_id' => $pegawai->id,
             'status' => Surat::STATUS_SELESAI,
             'ditugaskan_pada' => now()->subMinutes(30),
             'mulai_diproses_pada' => now()->subMinutes(20),
             'selesai_pada' => now()->subMinutes(10),
         ]);
+
+        foreach (range(1, 7) as $urutan) {
+            $surat->aktivitas()->create([
+                'user_id' => $pegawai->id,
+                'tipe' => AktivitasSurat::TIPE_SURAT_DIEDIT,
+                'deskripsi' => "Aktivitas resmi {$urutan}",
+                'created_at' => now()->subMinutes($urutan),
+                'updated_at' => now()->subMinutes($urutan),
+            ]);
+        }
 
         $this->actingAs($this->kepalaBidang())
             ->get(route('dashboard.kepala-bidang'))

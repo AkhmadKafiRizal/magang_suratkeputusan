@@ -77,6 +77,9 @@
                 </select>
             </div>
             <div class="filter-actions">
+                @if ($filterAktif)
+                    <span class="filter-active-indicator">Filter aktif</span>
+                @endif
                 <button class="primary-button" type="submit">Terapkan</button>
                 @if ($filterAktif)
                     <a class="outline-button" href="{{ route('kepala-bidang.monitoring-pegawai.show', $pegawai) }}">Reset</a>
@@ -103,6 +106,7 @@
                 <strong>{{ $filterAktif ? 'Tidak ada surat yang sesuai dengan filter.' : 'Belum ada surat yang ditugaskan kepada pegawai ini.' }}</strong>
                 @if ($filterAktif)
                     <span>Coba ubah kata kunci atau status yang dipilih.</span>
+                    <a class="primary-button" href="{{ route('kepala-bidang.monitoring-pegawai.show', $pegawai) }}">Reset Filter</a>
                 @else
                     <span>Surat akan tampil setelah Kepala Bidang melakukan penugasan.</span>
                 @endif
