@@ -574,14 +574,14 @@ class SuratManagementTest extends TestCase
             });
     }
 
-    public function test_monitoring_detail_link_opens_data_surat_with_employee_filter(): void
+    public function test_monitoring_detail_link_opens_employee_monitoring_detail(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
 
         $this->actingAs($this->kepalaBidang())
             ->get(route('dashboard.kepala-bidang'))
             ->assertOk()
-            ->assertSee(route('kepala-bidang.surat.index', ['pegawai' => $pegawai->id]), false);
+            ->assertSee(route('kepala-bidang.monitoring-pegawai.show', $pegawai), false);
     }
 
     public function test_employee_filter_only_displays_letters_for_the_selected_employee(): void
