@@ -95,12 +95,12 @@
                     @forelse ($suratTerbaru as $surat)
                         <tr>
                             <td><strong>{{ $surat->nomor_surat }}</strong></td>
-                            <td>{{ $surat->tanggal_masuk }}</td>
+                            <td>{{ $surat->tanggal_masuk->locale('id')->translatedFormat('d M Y') }}</td>
                             <td>{{ $surat->perihal }}</td>
-                            <td>{{ $surat->pengirim }}</td>
-                            <td>{{ $surat->pegawai?->name ?? 'Belum ditugaskan' }}</td>
+                            <td>{{ $surat->pemohon_pengirim }}</td>
+                            <td>{{ $surat->pegawai?->name ?? 'Belum Ditugaskan' }}</td>
                             <td><span class="status-badge status-{{ $surat->status }}">{{ $surat->status_label }}</span></td>
-                            <td><a class="table-action" href="#">Lihat Detail</a></td>
+                            <td><a class="table-action" href="{{ route('kepala-bidang.surat.show', $surat) }}">Lihat Detail</a></td>
                         </tr>
                     @empty
                         <tr>
@@ -142,11 +142,11 @@
                             </span>
                         </div>
                         <div class="employee-metrics">
-                            <span><small>Sedang Diproses</small><strong>0</strong></span>
-                            <span><small>Selesai</small><strong>0</strong></span>
-                            <span><small>Total Ditangani</small><strong>0</strong></span>
+                            <span><small>Sedang Diproses</small><strong>{{ $anggota->sedang_diproses_count }}</strong></span>
+                            <span><small>Selesai</small><strong>{{ $anggota->selesai_count }}</strong></span>
+                            <span><small>Total Ditangani</small><strong>{{ $anggota->total_ditangani_count }}</strong></span>
                         </div>
-                        <button class="secondary-button" type="button" disabled title="Tersedia setelah data surat terhubung">Lihat Detail</button>
+                        <a class="secondary-button" href="{{ route('kepala-bidang.surat.index', ['pegawai' => $anggota->id]) }}">Lihat Detail</a>
                     </article>
                 @empty
                     <div class="section-empty">
@@ -172,8 +172,10 @@
             @forelse ($aktivitasTerbaru as $aktivitas)
                 <div class="activity-item">
                     <span class="activity-marker" aria-hidden="true"></span>
-                    <time datetime="{{ $aktivitas->created_at->toIso8601String() }}">{{ $aktivitas->created_at->format('H:i') }}</time>
-                    <p>&mdash; {{ $aktivitas->deskripsi }}</p>
+                    <span class="activity-content">
+                        <time datetime="{{ $aktivitas->waktu->toIso8601String() }}">{{ $aktivitas->waktu->locale('id')->translatedFormat('d M Y, H:i') }} WIB</time>
+                        <p>{{ $aktivitas->deskripsi }}</p>
+                    </span>
                 </div>
             @empty
                 <div class="section-empty activity-empty">
@@ -181,7 +183,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5M12 7v5l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </span>
                     <strong>Belum ada aktivitas</strong>
-                    <span>Pembaruan status dan penugasan akan muncul di sini.</span>
+                    <span>Aktivitas penugasan dan perubahan status surat akan muncul di sini.</span>
                 </div>
             @endforelse
         </section>
