@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Gangguan Sistem')
+@section('code', '500')
+@section('heading', 'SIARKA mengalami gangguan')
+@section('message', 'Permintaan Anda belum dapat diproses. Silakan coba kembali beberapa saat lagi.')

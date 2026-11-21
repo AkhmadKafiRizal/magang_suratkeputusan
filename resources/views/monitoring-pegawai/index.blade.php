@@ -2,14 +2,14 @@
 
 @section('title', 'Monitoring Pegawai')
 @section('pageTitle', 'Monitoring Pegawai')
-@section('roleLabel', 'Kepala Bidang')
+@section('roleLabel', 'Pegawai')
 
 @section('content')
     <section class="page-heading" aria-labelledby="monitoring-pegawai-title">
         <div>
             <span class="section-kicker">Monitoring Tim</span>
             <h2 id="monitoring-pegawai-title">Monitoring Pegawai</h2>
-            <p>Pantau beban kerja dan progres setiap pegawai untuk membantu menentukan penugasan surat.</p>
+            <p>Pantau beban kerja dan progres surat yang diambil sendiri oleh setiap pegawai.</p>
         </div>
     </section>
 
@@ -32,7 +32,7 @@
             <div class="summary-copy">
                 <span>Surat Belum Ditangani</span>
                 <strong>{{ number_format($ringkasan['belum_ditangani'], 0, ',', '.') }}</strong>
-                <small>Sudah ditugaskan ke pegawai</small>
+                <small>Sudah diambil oleh pegawai</small>
             </div>
         </article>
 
@@ -113,7 +113,7 @@
 
                     <div class="monitoring-employee-footer">
                         <span>Surat aktif merupakan pekerjaan yang belum ditangani atau sedang diproses.</span>
-                        <a class="secondary-button" href="{{ route('kepala-bidang.monitoring-pegawai.show', $anggota) }}">Lihat Detail</a>
+                        <a class="secondary-button" href="{{ route('monitoring-pegawai.show', $anggota) }}">Lihat Detail</a>
                     </div>
                 </article>
             @if ($loop->last)
@@ -125,7 +125,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M18 8v6M15 11h6" stroke-linecap="round"/></svg>
                 </span>
                 <strong>Belum ada akun pegawai</strong>
-                <span>Akun dengan role pegawai akan tampil otomatis di sini.</span>
+                <span>Akun pengguna akan tampil otomatis di sini.</span>
             </div>
         @endforelse
     </section>

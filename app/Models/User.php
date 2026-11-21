@@ -7,21 +7,41 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
-#[Fillable(['name', 'email', 'password', 'role'])]
+#[Fillable(['name', 'username', 'email', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    public const ROLE_KEPALA_BIDANG = 'kepala_bidang';
+    /** @return Attribute<string, string> */
+    protected function username(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => strtolower(trim($value)),
+        );
+    }
 
-    public const ROLE_PEGAWAI = 'pegawai';
+    /**
+     * Cari akun dengan pakek username atau email tanpa membedakan huruf besar-kecil
+     * dan tanpa terpengaruh spasi pada data akun lama.
+     */
+    public function scopeForLoginIdentity(Builder $query, string $identity): Builder
+    {
+        $identity = Str::lower(trim($identity));
+
+        return $query->where(function (Builder $query) use ($identity): void {
+            $query->whereRaw('LOWER(TRIM(username)) = ?', [$identity])
+                ->orWhereRaw('LOWER(TRIM(email)) = ?', [$identity]);
+        });
+    }
 
     /**
      * Surat yang ditangani oleh pengguna sebagai pegawai.
@@ -41,6 +61,11 @@ class User extends Authenticatable
     public function aktivitasSurat(): HasMany
     {
         return $this->hasMany(AktivitasSurat::class, 'user_id');
+    }
+
+    public function passwordResetOtps(): HasMany
+    {
+        return $this->hasMany(PasswordResetOtp::class);
     }
 
     public function scopeWithMonitoringCounts(Builder $query): Builder

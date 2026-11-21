@@ -2,7 +2,7 @@
 
 @section('title', 'Detail Monitoring Pegawai')
 @section('pageTitle', 'Monitoring Pegawai')
-@section('roleLabel', 'Kepala Bidang')
+@section('roleLabel', 'Pegawai')
 
 @section('content')
     <section class="page-heading" aria-labelledby="detail-monitoring-title">
@@ -12,7 +12,7 @@
             <p>Lihat beban kerja dan surat yang saat ini ditangani pegawai.</p>
         </div>
         <div class="page-actions">
-            <a class="outline-button" href="{{ route('kepala-bidang.monitoring-pegawai.index') }}">Kembali</a>
+            <a class="outline-button" href="{{ route('monitoring-pegawai.index') }}">Kembali</a>
         </div>
     </section>
 
@@ -56,7 +56,7 @@
     </section>
 
     <section class="content-card filter-card" aria-label="Pencarian dan filter pekerjaan pegawai">
-        <form class="filter-form monitoring-filter-form" method="GET" action="{{ route('kepala-bidang.monitoring-pegawai.show', $pegawai) }}">
+        <form class="filter-form monitoring-filter-form" method="GET" action="{{ route('monitoring-pegawai.show', $pegawai) }}">
             <div class="filter-search">
                 <div class="filter-label-row">
                     <label for="q">Pencarian</label>
@@ -64,7 +64,7 @@
                 </div>
                 <div class="input-with-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4" stroke-linecap="round"/></svg>
-                    <input id="q" name="q" type="search" value="{{ request('q') }}" placeholder="Cari nomor surat atau perihal" enterkeyhint="search">
+                    <input id="q" name="q" type="search" value="{{ request('q') }}" placeholder="Cari nomor surat atau pemohon" enterkeyhint="search">
                 </div>
             </div>
             <div>
@@ -78,11 +78,11 @@
             </div>
             <div class="filter-actions">
                 @if ($filterAktif)
-                    <span class="filter-active-indicator">Filter aktif</span>
+                    <x-filter-active-indicator />
                 @endif
                 <button class="primary-button" type="submit">Terapkan</button>
                 @if ($filterAktif)
-                    <a class="outline-button" href="{{ route('kepala-bidang.monitoring-pegawai.show', $pegawai) }}">Reset</a>
+                    <a class="outline-button" href="{{ route('monitoring-pegawai.show', $pegawai) }}">Reset</a>
                 @endif
             </div>
         </form>
@@ -93,7 +93,7 @@
             <div>
                 <span class="section-kicker">Pekerjaan Pegawai</span>
                 <h2 id="daftar-pekerjaan-title">Surat yang Ditangani</h2>
-                <p>Daftar surat berdasarkan penugasan saat ini kepada {{ $pegawai->name }}.</p>
+                <p>Daftar surat yang diambil dan ditangani oleh {{ $pegawai->name }}.</p>
             </div>
             <span class="record-count">{{ number_format($surats->total(), 0, ',', '.') }} surat</span>
         </div>
@@ -103,12 +103,12 @@
                 <span class="empty-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7.5h6l2 2h8v10H4z" stroke-linejoin="round"/><path d="M9 14h6" stroke-linecap="round"/></svg>
                 </span>
-                <strong>{{ $filterAktif ? 'Tidak ada surat yang sesuai dengan filter.' : 'Belum ada surat yang ditugaskan kepada pegawai ini.' }}</strong>
+                <strong>{{ $filterAktif ? 'Tidak ada surat yang sesuai dengan filter.' : 'Pegawai ini belum mengambil surat.' }}</strong>
                 @if ($filterAktif)
                     <span>Coba ubah kata kunci atau status yang dipilih.</span>
-                    <a class="primary-button" href="{{ route('kepala-bidang.monitoring-pegawai.show', $pegawai) }}">Reset Filter</a>
+                    <a class="primary-button" href="{{ route('monitoring-pegawai.show', $pegawai) }}">Reset Filter</a>
                 @else
-                    <span>Surat akan tampil setelah Kepala Bidang melakukan penugasan.</span>
+                    <span>Surat akan tampil setelah diberikan kepada pegawai ini.</span>
                 @endif
             </div>
         @else
@@ -118,9 +118,9 @@
                         <tr>
                             <th>Nomor Surat</th>
                             <th>Tanggal Masuk</th>
-                            <th>Perihal</th>
+                            <th>Pemohon / Pengirim</th>
                             <th>Status</th>
-                            <th>Ditugaskan</th>
+                            <th>Diambil</th>
                             <th>Mulai Diproses</th>
                             <th>Selesai Diproses</th>
                             <th>Aksi</th>
@@ -131,18 +131,18 @@
                             <tr>
                                 <td><strong>{{ $surat->nomor_surat }}</strong></td>
                                 <td>{{ $surat->tanggal_masuk->locale('id')->translatedFormat('d M Y') }}</td>
-                                <td class="table-text-wide">{{ $surat->perihal }}</td>
+                                <td class="table-text-wide">{{ $surat->pemohon_pengirim }}</td>
                                 <td><span class="status-badge status-{{ $surat->status }}">{{ $surat->status_label }}</span></td>
-                                <td class="timestamp-cell">{{ $surat->ditugaskan_pada !== null ? $surat->ditugaskan_pada->locale('id')->translatedFormat('d M Y, H:i').' WIB' : 'Belum Ditugaskan' }}</td>
+                                <td class="timestamp-cell">{{ $surat->ditugaskan_pada !== null ? $surat->ditugaskan_pada->locale('id')->translatedFormat('d M Y, H:i').' WIB' : 'Belum Diambil' }}</td>
                                 <td class="timestamp-cell">{{ $surat->mulai_diproses_pada !== null ? $surat->mulai_diproses_pada->locale('id')->translatedFormat('d M Y, H:i').' WIB' : 'Belum Diproses' }}</td>
                                 <td class="timestamp-cell">{{ $surat->selesai_pada !== null ? $surat->selesai_pada->locale('id')->translatedFormat('d M Y, H:i').' WIB' : 'Belum Selesai' }}</td>
-                                <td><a class="table-action" href="{{ route('kepala-bidang.surat.show', $surat) }}">Lihat Surat</a></td>
+                                <td><a class="table-action" href="{{ route('surat.show', $surat) }}">Lihat Surat</a></td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            <div class="pagination-wrap">{{ $surats->links() }}</div>
+            <div class="pagination-wrap">{{ $surats->links('components.pagination') }}</div>
         @endif
     </section>
 @endsection

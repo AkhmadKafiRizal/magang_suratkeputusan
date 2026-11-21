@@ -2,7 +2,7 @@
 
 @section('title', 'Detail Surat')
 @section('pageTitle', 'Data Surat')
-@section('roleLabel', 'Kepala Bidang')
+@section('roleLabel', 'Pegawai')
 
 @section('content')
     <section class="page-heading" aria-labelledby="detail-surat-title">
@@ -12,11 +12,8 @@
             <p>Informasi lengkap surat dan progres penanganannya.</p>
         </div>
         <div class="page-actions">
-            <a class="outline-button" href="{{ route('kepala-bidang.surat.index') }}">Kembali</a>
-            <a class="outline-button" href="{{ route('kepala-bidang.surat.edit', $surat) }}">Edit Surat</a>
-            @if ($surat->pegawai_id === null)
-                <a class="primary-button" href="{{ route('kepala-bidang.surat.edit', $surat) }}#pegawai_id">Tugaskan Pegawai</a>
-            @endif
+            <a class="outline-button" href="{{ route('surat.index') }}">Kembali</a>
+            <a class="outline-button" href="{{ route('surat.edit', $surat) }}">Edit Surat</a>
         </div>
     </section>
 
@@ -38,14 +35,14 @@
                 <h2 id="riwayat-surat-title">Riwayat Surat</h2>
                 <p>Lima aktivitas terbaru yang tercatat untuk surat ini.</p>
             </div>
-            <a class="outline-button compact-button" href="{{ route('kepala-bidang.riwayat-aktivitas.index', ['surat' => $surat->id]) }}">Lihat Semua Riwayat</a>
+            <a class="outline-button compact-button" href="{{ route('riwayat-aktivitas.index', ['surat' => $surat->id]) }}">Lihat Semua Riwayat</a>
         </div>
 
         <div class="detail-history-list">
             @forelse ($aktivitasTerbaru as $aktivitas)
                 <div class="detail-history-item">
                     <time datetime="{{ $aktivitas->created_at->toIso8601String() }}">{{ $aktivitas->created_at->locale('id')->translatedFormat('H:i') }} WIB</time>
-                    <span>{{ $aktivitas->deskripsi }}</span>
+                    <span>{{ $aktivitas->deskripsi_tampilan }}</span>
                 </div>
             @empty
                 <div class="section-empty detail-history-empty">

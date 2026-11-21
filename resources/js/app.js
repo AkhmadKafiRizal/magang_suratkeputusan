@@ -1,5 +1,21 @@
 const dashboardShell = document.querySelector('[data-dashboard-shell]');
 
+const profileMenu = document.querySelector('[data-profile-menu]');
+if (profileMenu) {
+    document.addEventListener('click', (event) => {
+        if (!profileMenu.contains(event.target)) profileMenu.open = false;
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && profileMenu.open) {
+            profileMenu.open = false;
+            profileMenu.querySelector('summary').focus();
+        }
+    });
+    profileMenu.addEventListener('focusout', (event) => {
+        if (!profileMenu.contains(event.relatedTarget)) profileMenu.open = false;
+    });
+}
+
 if (dashboardShell) {
     const openButton = dashboardShell.querySelector('[data-sidebar-open]');
     const closeButtons = dashboardShell.querySelectorAll('[data-sidebar-close]');
@@ -29,6 +45,29 @@ if (dashboardShell) {
         });
     });
 
+    const dropdownToggles = dashboardShell.querySelectorAll('[data-dropdown-toggle]');
+    dropdownToggles.forEach((toggle) => {
+        toggle.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const group = toggle.closest('[data-sidebar-dropdown]');
+            if (!group) {
+                return;
+            }
+            const isOpen = group.classList.toggle('is-open');
+            toggle.setAttribute('aria-expanded', String(isOpen));
+        });
+    });
+
+    const sidebarSublinks = dashboardShell.querySelectorAll('.sidebar-sublink');
+    sidebarSublinks.forEach((sublink) => {
+        sublink.addEventListener('click', () => {
+            if (window.innerWidth <= 980) {
+                setSidebarOpen(false);
+            }
+        });
+    });
+
     window.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && dashboardShell.classList.contains('sidebar-is-open')) {
             setSidebarOpen(false, true);
@@ -42,6 +81,124 @@ if (dashboardShell) {
     });
 }
 
+document.querySelectorAll('[data-period-filter]').forEach((form) => {
+    const periodSelect = form.querySelector('[data-period-select]');
+    const monthFilter = form.querySelector('[data-month-filter]');
+    const monthSelect = monthFilter?.querySelector('select');
+    const movingFields = [
+        form.querySelector('[data-period-field]'),
+        form.querySelector('[data-year-field]'),
+        form.querySelector('.report-filter-actions'),
+    ].filter(Boolean);
+    const reducedPeriodMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let periodExitTimer = null;
+
+    const syncMonthFilter = (animateLayout = false) => {
+        const monthly = periodSelect?.value === 'bulanan';
+        const previousPositions = animateLayout
+            ? new Map(movingFields.map((field) => [field, field.getBoundingClientRect()]))
+            : null;
+
+        if (animateLayout) form.style.transition = 'none';
+        form.classList.toggle('is-monthly', monthly);
+        form.classList.toggle('is-yearly', !monthly);
+        monthFilter?.setAttribute('aria-hidden', String(!monthly));
+        if (monthSelect) monthSelect.disabled = !monthly;
+
+        if (!animateLayout) return;
+
+        form.getBoundingClientRect();
+        const nextPositions = new Map(movingFields.map((field) => [field, field.getBoundingClientRect()]));
+        form.style.removeProperty('transition');
+
+        if (reducedPeriodMotion.matches) return;
+
+        movingFields.forEach((field) => {
+            const previous = previousPositions.get(field);
+            const next = nextPositions.get(field);
+            const offsetX = previous.left - next.left;
+            const offsetY = previous.top - next.top;
+
+            if ((!offsetX && !offsetY) || typeof field.animate !== 'function') return;
+
+            field.getAnimations().forEach((animation) => animation.cancel());
+            field.animate(
+                [
+                    { transform: `translate(${offsetX}px, ${offsetY}px)` },
+                    { transform: 'translate(0, 0)' },
+                ],
+                {
+                    duration: 320,
+                    easing: 'cubic-bezier(.22, 1, .36, 1)',
+                },
+            );
+        });
+    };
+
+    periodSelect?.addEventListener('change', () => {
+        const monthly = periodSelect.value === 'bulanan';
+        window.clearTimeout(periodExitTimer);
+        monthFilter?.classList.remove('is-period-exiting');
+
+        if (!monthly && form.classList.contains('is-monthly') && !reducedPeriodMotion.matches) {
+            monthFilter?.classList.add('is-period-exiting');
+            monthFilter?.setAttribute('aria-hidden', 'true');
+            if (monthSelect) monthSelect.disabled = true;
+            periodExitTimer = window.setTimeout(() => {
+                monthFilter?.classList.remove('is-period-exiting');
+                syncMonthFilter(true);
+            }, 170);
+            return;
+        }
+
+        syncMonthFilter(true);
+    });
+    syncMonthFilter();
+});
+
+const fieldClickMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+document.querySelectorAll('[data-field-click-feedback]').forEach((field) => {
+    const animateField = () => {
+        if (fieldClickMotion.matches || typeof field.animate !== 'function') {
+            return;
+        }
+
+        field.getAnimations().forEach((animation) => animation.cancel());
+        field.animate(
+            [
+                { transform: 'translateY(6px)', opacity: .72, boxShadow: '0 0 0 1px rgba(35, 116, 209, .05)' },
+                { transform: 'translateY(0)', opacity: 1, boxShadow: '0 0 0 3px rgba(35, 116, 209, .11)' },
+            ],
+            {
+                duration: 460,
+                easing: 'cubic-bezier(.2, .75, .25, 1)',
+            },
+        );
+    };
+
+    field.addEventListener('pointerdown', animateField);
+    field.addEventListener('keydown', (event) => {
+        if (['Enter', ' ', 'ArrowDown'].includes(event.key)) {
+            animateField();
+        }
+    });
+});
+
+document.querySelectorAll('input[type="date"][data-open-date-picker]').forEach((field) => {
+    field.addEventListener('click', () => {
+        if (field.disabled || field.readOnly || typeof field.showPicker !== 'function') {
+            return;
+        }
+
+        try {
+            field.showPicker();
+        } catch {
+            // Browser tetap menggunakan perilaku date picker bawaannya.
+        }
+    });
+});
+
 const dismissToast = (toast) => {
     if (!toast || toast.classList.contains('is-leaving')) {
         return;
@@ -54,7 +211,12 @@ const dismissToast = (toast) => {
     window.setTimeout(() => container.remove(), 240);
 };
 
-document.querySelectorAll('[data-toast]').forEach((toast) => {
+const initializeToast = (toast) => {
+    if (!toast || toast.dataset.toastInitialized === 'true') {
+        return;
+    }
+
+    toast.dataset.toastInitialized = 'true';
     const timeout = Number(toast.dataset.toastTimeout || 4000);
     let timer;
 
@@ -76,7 +238,56 @@ document.querySelectorAll('[data-toast]').forEach((toast) => {
     });
 
     startTimer();
-});
+};
+
+document.querySelectorAll('[data-toast]').forEach(initializeToast);
+
+const showToast = (type, message) => {
+    let region = document.querySelector('[data-toast-region]');
+
+    if (!region) {
+        region = document.createElement('div');
+        region.className = 'toast-region';
+        region.dataset.toastRegion = '';
+        region.setAttribute('aria-label', 'Notifikasi');
+        document.body.append(region);
+    }
+
+    const isError = type === 'error';
+    const toast = document.createElement('div');
+    toast.className = `app-toast app-toast-${type}`;
+    toast.dataset.toast = '';
+    toast.dataset.toastTimeout = '4000';
+    toast.setAttribute('role', isError ? 'alert' : 'status');
+    toast.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+    toast.setAttribute('aria-atomic', 'true');
+
+    const icon = document.createElement('span');
+    icon.className = 'toast-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = isError
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01" stroke-linecap="round"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    const copy = document.createElement('span');
+    copy.className = 'toast-copy';
+    const title = document.createElement('strong');
+    title.textContent = isError ? 'Terjadi Kesalahan' : 'Berhasil';
+    const body = document.createElement('span');
+    body.textContent = message;
+    copy.append(title, body);
+
+    const close = document.createElement('button');
+    close.className = 'toast-close';
+    close.type = 'button';
+    close.dataset.toastClose = '';
+    close.setAttribute('aria-label', 'Tutup notifikasi');
+    close.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" stroke-linecap="round"/></svg>';
+
+    toast.append(icon, copy, close);
+    region.append(toast);
+    initializeToast(toast);
+};
 
 const replaceButtonLabel = (button, label, loading = false) => {
     if (!button) {
@@ -101,6 +312,7 @@ let confirmationForm = null;
 let confirmationSubmitter = null;
 let confirmationTrigger = null;
 let confirmationLoadingLabel = 'Memproses...';
+let confirmationConfirmLabel = 'Ya, Lanjutkan';
 
 const closeConfirmation = (restoreFocus = true) => {
     if (!confirmationModal || confirmationModal.hidden) {
@@ -136,6 +348,7 @@ const openConfirmation = (form, submitter, config) => {
     confirmationSubmitter = submitter;
     confirmationTrigger = submitter || document.activeElement;
     confirmationLoadingLabel = config.loadingLabel || 'Memproses...';
+    confirmationConfirmLabel = config.confirmLabel || 'Ya, Lanjutkan';
 
     const title = confirmationModal.querySelector('[data-confirmation-title]');
     const message = confirmationModal.querySelector('[data-confirmation-message]');
@@ -145,7 +358,9 @@ const openConfirmation = (form, submitter, config) => {
     title.textContent = config.title;
     message.textContent = config.message;
     replaceButtonLabel(cancelButton, config.cancelLabel || 'Batal');
-    replaceButtonLabel(submitButton, config.confirmLabel || 'Ya, Lanjutkan');
+    replaceButtonLabel(submitButton, confirmationConfirmLabel);
+    submitButton.classList.toggle('excel-export-button', config.variant === 'excel');
+    submitButton.classList.toggle('danger-button', config.variant === 'danger');
     submitButton.disabled = false;
     confirmationModal.hidden = false;
     document.body.classList.add('modal-is-open');
@@ -157,49 +372,21 @@ const openConfirmation = (form, submitter, config) => {
     return true;
 };
 
-const confirmationForForm = (form) => {
-    if (form.dataset.confirmTitle) {
+const confirmationForForm = (form, submitter = null) => {
+    const source = submitter?.dataset.confirmTitle ? submitter : form;
+
+    if (source.dataset.confirmTitle) {
         return {
-            title: form.dataset.confirmTitle,
-            message: form.dataset.confirmMessage,
-            confirmLabel: form.dataset.confirmLabel,
-            cancelLabel: form.dataset.confirmCancelLabel,
-            loadingLabel: form.dataset.confirmLoadingLabel,
+            title: source.dataset.confirmTitle,
+            message: source.dataset.confirmMessage,
+            confirmLabel: source.dataset.confirmLabel,
+            cancelLabel: source.dataset.confirmCancelLabel,
+            loadingLabel: source.dataset.confirmLoadingLabel,
+            variant: source.dataset.confirmVariant,
         };
     }
 
-    if (!form.hasAttribute('data-assignment-confirm')) {
-        return null;
-    }
-
-    const employeeSelect = form.querySelector('[name="pegawai_id"]');
-    const initialEmployeeId = form.dataset.initialPegawaiId || '';
-    const currentEmployeeId = employeeSelect?.value || '';
-
-    if (!initialEmployeeId || initialEmployeeId === currentEmployeeId) {
-        return null;
-    }
-
-    const initialEmployeeName = form.dataset.initialPegawaiName || 'pegawai sebelumnya';
-
-    if (!currentEmployeeId) {
-        return {
-            title: 'Hapus Penugasan?',
-            message: `${initialEmployeeName} tidak lagi menjadi pegawai yang menangani surat ini.`,
-            confirmLabel: 'Ya, Hapus Penugasan',
-            loadingLabel: 'Menghapus...',
-        };
-    }
-
-    const selectedOption = employeeSelect?.selectedOptions?.[0];
-    const newEmployeeName = selectedOption?.dataset.pegawaiName || 'pegawai yang baru';
-
-    return {
-        title: 'Ganti Pegawai Penanganan?',
-        message: `Surat ini akan dialihkan dari ${initialEmployeeName} ke ${newEmployeeName}.`,
-        confirmLabel: 'Ya, Ganti Pegawai',
-        loadingLabel: 'Memindahkan...',
-    };
+    return null;
 };
 
 if (confirmationModal) {
@@ -216,7 +403,16 @@ if (confirmationModal) {
         button.disabled = true;
         replaceButtonLabel(button, confirmationLoadingLabel, true);
         confirmationForm.dataset.confirmed = 'true';
+        const method = (confirmationSubmitter?.getAttribute('formmethod') || confirmationForm.method || 'get').toLowerCase();
         confirmationForm.requestSubmit(confirmationSubmitter || undefined);
+
+        if (method === 'get') {
+            window.setTimeout(() => {
+                button.disabled = false;
+                replaceButtonLabel(button, confirmationConfirmLabel);
+                closeConfirmation(true);
+            }, 350);
+        }
     });
 
     confirmationModal.addEventListener('keydown', (event) => {
@@ -244,6 +440,140 @@ if (confirmationModal) {
     });
 }
 
+const updateQuickStatusView = (form, surat) => {
+    if (!surat?.status) {
+        return;
+    }
+
+    const row = form.closest('[data-surat-row]');
+    const updatedAt = row?.querySelector('[data-status-updated-at]');
+
+    if (updatedAt && surat.updated_at_label) {
+        updatedAt.textContent = surat.updated_at_label;
+        updatedAt.setAttribute('datetime', surat.updated_at || '');
+    }
+
+    if (surat.status === 'selesai') {
+        const badge = document.createElement('span');
+        badge.className = 'status-badge status-selesai';
+        badge.textContent = 'Selesai';
+        form.replaceWith(badge);
+        return;
+    }
+
+    const button = form.querySelector('.quick-status-button');
+    const statusInput = form.querySelector('input[name="status"]');
+    const sedangDiproses = surat.status === 'sedang_diproses';
+    const label = sedangDiproses ? 'Sedang Diproses' : 'Belum Ditangani';
+
+    form.dataset.currentStatus = surat.status;
+    form.dataset.currentLabel = label;
+    button?.classList.remove('status-belum_ditangani', 'status-sedang_diproses', 'status-selesai');
+    button?.classList.add(`status-${surat.status}`);
+
+    if (statusInput) {
+        statusInput.value = sedangDiproses ? 'selesai' : 'sedang_diproses';
+    }
+
+    if (button) {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        button.dataset.loadingLabel = sedangDiproses ? 'Menyelesaikan...' : 'Memproses...';
+        button.setAttribute('aria-label', `${sedangDiproses ? 'Selesaikan' : 'Mulai proses'} surat ${form.dataset.suratNumber}`);
+        replaceButtonLabel(button, label);
+    }
+
+    if (sedangDiproses) {
+        form.dataset.confirmTitle = 'Konfirmasi Penyelesaian Surat';
+        form.dataset.confirmMessage = `Apakah Anda yakin penanganan surat ini sudah selesai? Nomor Surat: ${form.dataset.suratNumber}`;
+        form.dataset.confirmLabel = 'Ya, Selesaikan';
+        form.dataset.confirmLoadingLabel = 'Menyelesaikan...';
+    } else {
+        delete form.dataset.confirmTitle;
+        delete form.dataset.confirmMessage;
+        delete form.dataset.confirmLabel;
+        delete form.dataset.confirmLoadingLabel;
+    }
+};
+
+const finishQuickStatusConfirmation = (form) => {
+    if (!confirmationModal || confirmationForm !== form) {
+        return;
+    }
+
+    const submitButton = confirmationModal.querySelector('[data-confirmation-submit]');
+    submitButton.disabled = false;
+    replaceButtonLabel(submitButton, confirmationConfirmLabel);
+    closeConfirmation(false);
+};
+
+const quickStatusErrorMessage = (response, payload) => {
+    const validationMessage = payload?.errors
+        ? Object.values(payload.errors).flat().find(Boolean)
+        : null;
+
+    if (validationMessage) {
+        return validationMessage;
+    }
+
+    if (response.status === 401 || response.status === 419) {
+        return 'Sesi Anda telah berakhir. Silakan muat ulang halaman dan login kembali.';
+    }
+
+    if (response.status === 403) {
+        return 'Anda tidak memiliki akses untuk mengubah status surat ini.';
+    }
+
+    return payload?.message || 'Status surat belum dapat diperbarui. Silakan coba lagi.';
+};
+
+const submitQuickStatus = async (form) => {
+    const button = form.querySelector('.quick-status-button');
+
+    if (!button || form.dataset.submitting === 'true') {
+        return;
+    }
+
+    form.dataset.submitting = 'true';
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    replaceButtonLabel(button, button.dataset.loadingLabel || 'Memproses...', true);
+
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (payload.surat) {
+            updateQuickStatusView(form, payload.surat);
+        }
+
+        if (!response.ok) {
+            throw new Error(quickStatusErrorMessage(response, payload));
+        }
+
+        showToast('success', payload.message || 'Status surat berhasil diperbarui.');
+    } catch (error) {
+        showToast('error', error instanceof Error ? error.message : 'Status surat belum dapat diperbarui. Silakan coba lagi.');
+    } finally {
+        finishQuickStatusConfirmation(form);
+        delete form.dataset.submitting;
+
+        if (form.isConnected) {
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+            replaceButtonLabel(button, form.dataset.currentLabel || 'Perbarui Status');
+        }
+    }
+};
+
 const serializeForm = (form) => JSON.stringify(
     [...new FormData(form).entries()]
         .filter(([name]) => !['_token', '_method'].includes(name))
@@ -262,20 +592,80 @@ document.querySelectorAll('form[data-dirty-form]').forEach((form) => {
     form.addEventListener('change', updateDirtyState);
 });
 
-window.addEventListener('beforeunload', (event) => {
-    const hasUnsavedChanges = [...document.querySelectorAll('form[data-dirty-form]')]
-        .some((form) => form.dataset.dirty === 'true' && form.dataset.submitting !== 'true');
+const hasUnsavedChanges = () => [...document.querySelectorAll('form[data-dirty-form]')]
+    .some((form) => form.dataset.dirty === 'true' && form.dataset.submitting !== 'true');
 
-    if (hasUnsavedChanges) {
+window.addEventListener('beforeunload', (event) => {
+    if (hasUnsavedChanges()) {
         event.preventDefault();
         event.returnValue = '';
     }
 });
 
+const pageTransition = document.querySelector('[data-page-transition]');
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+let pageNavigationPending = false;
+
+document.addEventListener('click', (event) => {
+    const link = event.target.closest('a[href]');
+
+    if (
+        !pageTransition
+        || !link
+        || event.defaultPrevented
+        || event.button !== 0
+        || event.metaKey
+        || event.ctrlKey
+        || event.shiftKey
+        || event.altKey
+        || link.hasAttribute('download')
+        || link.hasAttribute('data-no-page-transition')
+        || (link.target && link.target !== '_self')
+        || hasUnsavedChanges()
+    ) {
+        return;
+    }
+
+    const destination = new URL(link.href, window.location.href);
+    const current = new URL(window.location.href);
+    const isSameDocumentAnchor = destination.origin === current.origin
+        && destination.pathname === current.pathname
+        && destination.search === current.search
+        && destination.hash !== current.hash;
+
+    if (
+        !['http:', 'https:'].includes(destination.protocol)
+        || destination.origin !== current.origin
+        || destination.href === current.href
+        || isSameDocumentAnchor
+        || pageNavigationPending
+    ) {
+        return;
+    }
+
+    event.preventDefault();
+    pageNavigationPending = true;
+
+    if (reducedMotion.matches) {
+        window.location.assign(destination.href);
+        return;
+    }
+
+    pageTransition.classList.add('is-page-leaving');
+    pageTransition.setAttribute('aria-busy', 'true');
+    window.setTimeout(() => window.location.assign(destination.href), 180);
+});
+
+window.addEventListener('pageshow', () => {
+    pageNavigationPending = false;
+    pageTransition?.classList.remove('is-page-leaving');
+    pageTransition?.removeAttribute('aria-busy');
+});
+
 document.addEventListener('submit', (event) => {
     const form = event.target;
 
-    if (!(form instanceof HTMLFormElement) || form.method.toLowerCase() === 'get') {
+    if (!(form instanceof HTMLFormElement)) {
         return;
     }
 
@@ -284,7 +674,7 @@ document.addEventListener('submit', (event) => {
         return;
     }
 
-    const confirmation = confirmationForForm(form);
+    const confirmation = confirmationForForm(form, event.submitter);
 
     if (confirmation && form.dataset.confirmed !== 'true') {
         event.preventDefault();
@@ -295,6 +685,18 @@ document.addEventListener('submit', (event) => {
     }
 
     delete form.dataset.confirmed;
+
+    if (form.matches('[data-quick-status-form]')) {
+        event.preventDefault();
+        submitQuickStatus(form);
+        return;
+    }
+
+    const method = (event.submitter?.getAttribute('formmethod') || form.method || 'get').toLowerCase();
+    if (method === 'get') {
+        return;
+    }
+
     form.dataset.submitting = 'true';
     form.dataset.dirty = 'false';
 

@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Sesi Berakhir')
+@section('code', '419')
+@section('heading', 'Sesi Anda telah berakhir')
+@section('message', 'Silakan kembali ke SIARKA dan ulangi tindakan Anda.')

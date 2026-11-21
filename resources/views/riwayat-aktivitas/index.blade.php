@@ -2,7 +2,7 @@
 
 @section('title', 'Riwayat Aktivitas')
 @section('pageTitle', 'Riwayat / Aktivitas')
-@section('roleLabel', 'Kepala Bidang')
+@section('roleLabel', 'Pegawai')
 
 @section('content')
     <section class="page-heading" aria-labelledby="riwayat-aktivitas-title">
@@ -20,12 +20,12 @@
     @if ($suratFilter !== null)
         <div class="activity-filter-chip" role="status">
             <span>Menampilkan riwayat surat <strong>{{ $suratFilter->nomor_surat }}</strong></span>
-            <a href="{{ route('kepala-bidang.riwayat-aktivitas.index', request()->except(['surat', 'page'])) }}">Hapus Filter</a>
+            <a href="{{ route('riwayat-aktivitas.index', request()->except(['surat', 'page'])) }}">Hapus Filter</a>
         </div>
     @endif
 
     <section class="content-card filter-card" aria-label="Pencarian dan filter aktivitas">
-        <form class="filter-form activity-filter-form" method="GET" action="{{ route('kepala-bidang.riwayat-aktivitas.index') }}">
+        <form class="filter-form activity-filter-form" method="GET" action="{{ route('riwayat-aktivitas.index') }}">
             @if ($suratFilter !== null)
                 <input name="surat" type="hidden" value="{{ $suratFilter->id }}">
             @endif
@@ -37,7 +37,7 @@
                 </div>
                 <div class="input-with-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4" stroke-linecap="round"/></svg>
-                    <input id="q" name="q" type="search" value="{{ request('q') }}" placeholder="Cari nomor surat atau perihal" enterkeyhint="search">
+                    <input id="q" name="q" type="search" value="{{ request('q') }}" placeholder="Cari nomor surat, pemohon, atau pengguna" enterkeyhint="search">
                 </div>
             </div>
 
@@ -73,11 +73,11 @@
 
             <div class="filter-actions activity-filter-actions">
                 @if ($filterAktif)
-                    <span class="filter-active-indicator">Filter aktif</span>
+                    <x-filter-active-indicator />
                 @endif
                 <button class="primary-button" type="submit">Terapkan</button>
                 @if ($filterAktif)
-                    <a class="outline-button" href="{{ route('kepala-bidang.riwayat-aktivitas.index', $suratFilter !== null ? ['surat' => $suratFilter->id] : []) }}">Reset</a>
+                    <a class="outline-button" href="{{ route('riwayat-aktivitas.index', $suratFilter !== null ? ['surat' => $suratFilter->id] : []) }}">Reset</a>
                 @endif
             </div>
         </form>
@@ -99,9 +99,9 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5M12 7v5l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </span>
                 <strong>Belum ada aktivitas</strong>
-                <span>{{ $filterAktif || $suratFilter !== null ? 'Tidak ada aktivitas yang sesuai dengan filter.' : 'Aktivitas penugasan dan perubahan status surat akan muncul di sini.' }}</span>
+                <span>{{ $filterAktif || $suratFilter !== null ? 'Tidak ada aktivitas yang sesuai dengan filter.' : 'Aktivitas pengambilan dan perubahan status surat akan muncul di sini.' }}</span>
                 @if ($filterAktif)
-                    <a class="primary-button" href="{{ route('kepala-bidang.riwayat-aktivitas.index', $suratFilter !== null ? ['surat' => $suratFilter->id] : []) }}">Reset Filter</a>
+                    <a class="primary-button" href="{{ route('riwayat-aktivitas.index', $suratFilter !== null ? ['surat' => $suratFilter->id] : []) }}">Reset Filter</a>
                 @endif
             </div>
         @else
@@ -115,14 +115,18 @@
                         <span class="activity-timeline-dot" aria-hidden="true"></span>
                         <div class="activity-timeline-copy">
                             <span class="activity-type-badge activity-type-{{ $item->tipe_badge_class }}">{{ $item->tipe_label }}</span>
-                            <p>{{ $item->deskripsi }}</p>
+                            <p>{{ $item->deskripsi_tampilan }}</p>
                             <small>Surat {{ $item->surat->nomor_surat }}</small>
                         </div>
-                        <a class="outline-button compact-button activity-letter-link" href="{{ route('kepala-bidang.surat.show', $item->surat) }}">Lihat Surat</a>
+                        @if ($item->surat->trashed())
+                            <span class="activity-letter-deleted">Surat Dihapus</span>
+                        @else
+                            <a class="outline-button compact-button activity-letter-link" href="{{ route('surat.show', $item->surat) }}">Lihat Surat</a>
+                        @endif
                     </article>
                 @endforeach
             </div>
-            <div class="pagination-wrap">{{ $aktivitas->links() }}</div>
+            <div class="pagination-wrap">{{ $aktivitas->links('components.pagination') }}</div>
         @endif
     </section>
 @endsection

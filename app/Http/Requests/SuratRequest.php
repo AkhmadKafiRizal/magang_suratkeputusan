@@ -2,17 +2,16 @@
 
 namespace App\Http\Requests;
 
+use App\Models\KategoriSurat;
 use App\Models\Surat;
-use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class SuratRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === User::ROLE_KEPALA_BIDANG;
+        return $this->user() !== null;
     }
 
     /**
@@ -20,42 +19,45 @@ class SuratRequest extends FormRequest
      */
     public function rules(): array
     {
+        $surat = $this->route('surat');
+        $suratId = $surat instanceof Surat ? $surat->getKey() : null;
+
         return [
-            'nomor_surat' => ['required', 'string', 'max:255'],
-            'tanggal_masuk' => ['required', 'date'],
-            'perihal' => ['required', 'string', 'max:2000'],
-            'pemohon_pengirim' => ['required', 'string', 'max:255'],
-            'pegawai_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('users', 'id')->where('role', User::ROLE_PEGAWAI),
+            'nomor_surat' => [
+                'required',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail) use ($suratId): void {
+                    if (! is_string($value) || trim($value) === '') {
+                        return;
+                    }
+
+                    $nomorSurat = mb_strtolower(trim($value));
+                    $sudahAda = Surat::query()
+                        ->withTrashed()
+                        ->whereRaw('LOWER(TRIM(nomor_surat)) = ?', [$nomorSurat])
+                        ->when($suratId !== null, fn ($query) => $query->where('id', '!=', $suratId))
+                        ->exists();
+
+                    if ($sudahAda) {
+                        $fail('Nomor surat sudah ada. Koreksi kembali input nomor surat Anda.');
+                    }
+                },
             ],
+            'tanggal_masuk' => ['required', 'date'],
+            'pemohon_pengirim' => ['required', 'string', 'max:255'],
+            'kategori_surat_id' => [
+                'required',
+                'integer',
+                Rule::exists('kategori_surats', 'id')
+                    ->where(fn ($query) => $query->whereIn('slug', KategoriSurat::SLUG_KATEGORI_RESMI)),
+            ],
+            'pegawai_id' => ['missing'],
             'status' => ['prohibited'],
             'ditugaskan_pada' => ['prohibited'],
             'mulai_diproses_pada' => ['prohibited'],
             'selesai_pada' => ['prohibited'],
             'keterangan' => ['nullable', 'string', 'max:10000'],
-        ];
-    }
-
-    /**
-     * @return array<int, callable>
-     */
-    public function after(): array
-    {
-        return [
-            function (Validator $validator): void {
-                $surat = $this->route('surat');
-
-                if ($surat instanceof Surat
-                    && $surat->status !== Surat::STATUS_BELUM_DITANGANI
-                    && $this->input('pegawai_id') === null) {
-                    $validator->errors()->add(
-                        'pegawai_id',
-                        'Penugasan tidak dapat dihapus karena surat sedang diproses atau sudah selesai.'
-                    );
-                }
-            },
         ];
     }
 
@@ -68,13 +70,23 @@ class SuratRequest extends FormRequest
             'nomor_surat.required' => 'Nomor surat wajib diisi.',
             'tanggal_masuk.required' => 'Tanggal masuk wajib diisi.',
             'tanggal_masuk.date' => 'Tanggal masuk harus berupa tanggal yang valid.',
-            'perihal.required' => 'Perihal wajib diisi.',
             'pemohon_pengirim.required' => 'Pemohon / pengirim wajib diisi.',
-            'pegawai_id.exists' => 'Pegawai yang dipilih tidak valid atau bukan pengguna dengan role pegawai.',
+            'kategori_surat_id.required' => 'Kategori surat wajib dipilih.',
+            'kategori_surat_id.exists' => 'Kategori surat yang dipilih tidak valid.',
+            'pegawai_id.missing' => 'Penangan surat tidak dapat dipilih melalui formulir ini. Setiap pegawai harus mengambil sendiri surat melalui menu Ambil Surat.',
             'status.prohibited' => 'Status proses hanya dapat diperbarui oleh pegawai yang menangani surat.',
-            'ditugaskan_pada.prohibited' => 'Waktu penugasan diatur otomatis oleh sistem dan tidak dapat diubah manual.',
+            'ditugaskan_pada.prohibited' => 'Waktu pengambilan surat diatur otomatis oleh sistem dan tidak dapat diubah manual.',
             'mulai_diproses_pada.prohibited' => 'Waktu mulai proses diatur otomatis oleh sistem dan tidak dapat diubah manual.',
             'selesai_pada.prohibited' => 'Waktu selesai diatur otomatis oleh sistem dan tidak dapat diubah manual.',
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('nomor_surat')) {
+            $this->merge([
+                'nomor_surat' => trim((string) $this->input('nomor_surat')),
+            ]);
+        }
     }
 }

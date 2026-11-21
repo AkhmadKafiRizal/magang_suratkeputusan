@@ -12,9 +12,27 @@
             <p>Informasi surat dan progres pekerjaan yang menjadi tanggung jawab Anda.</p>
         </div>
         <div class="page-actions">
-            <a class="outline-button" href="{{ route('pegawai.surat-saya.index') }}">Kembali</a>
+            <a class="outline-button" href="{{ route('surat-saya.index') }}">Kembali</a>
+            @if ($surat->status !== \App\Models\Surat::STATUS_SELESAI)
+                <form
+                    method="POST"
+                    action="{{ route('surat-saya.cancel', $surat) }}"
+                    data-loading-form
+                    data-confirm-title="Batalkan Pengambilan Surat?"
+                    data-confirm-message="Apakah Anda yakin ingin membatalkan pengambilan surat {{ $surat->nomor_surat }}? Surat akan kembali ke menu Ambil Surat dan dapat diambil pegawai lain. Riwayat pengambilan tetap tersimpan."
+                    data-confirm-label="Ya, Batalkan Pengambilan"
+                    data-confirm-loading-label="Membatalkan..."
+                    data-confirm-variant="danger"
+                >
+                    @csrf
+                    @method('PATCH')
+                    <button class="outline-button danger-outline-button" type="submit" data-loading-label="Membatalkan...">
+                        Batalkan Pengambilan
+                    </button>
+                </form>
+            @endif
             @if ($surat->status === \App\Models\Surat::STATUS_BELUM_DITANGANI)
-                <form method="POST" action="{{ route('pegawai.surat-saya.update-status', $surat) }}" data-loading-form>
+                <form method="POST" action="{{ route('surat-saya.update-status', $surat) }}" data-loading-form>
                     @csrf
                     @method('PATCH')
                     <input name="status" type="hidden" value="{{ \App\Models\Surat::STATUS_SEDANG_DIPROSES }}">
@@ -23,7 +41,7 @@
             @elseif ($surat->status === \App\Models\Surat::STATUS_SEDANG_DIPROSES)
                 <form
                     method="POST"
-                    action="{{ route('pegawai.surat-saya.update-status', $surat) }}"
+                    action="{{ route('surat-saya.update-status', $surat) }}"
                     data-loading-form
                     data-confirm-title="Tandai Surat Selesai?"
                     data-confirm-message="Setelah surat ditandai selesai, status tidak dapat dikembalikan melalui workflow saat ini."

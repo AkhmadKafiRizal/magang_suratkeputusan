@@ -59,62 +59,77 @@ class AktivitasSuratService
         );
     }
 
-    public function perubahanPenugasan(
-        Surat $surat,
-        User $actor,
-        ?User $pegawaiLama,
-        ?User $pegawaiBaru
-    ): AktivitasSurat {
-        if ($pegawaiLama === null && $pegawaiBaru !== null) {
-            return $this->record(
-                $surat,
-                $actor,
-                AktivitasSurat::TIPE_PEGAWAI_DITUGASKAN,
-                "{$actor->name} menugaskan surat {$surat->nomor_surat} kepada {$pegawaiBaru->name}.",
-                ['pegawai_baru_id' => $pegawaiBaru->id]
-            );
-        }
+    public function suratDihapus(Surat $surat, User $actor): AktivitasSurat
+    {
+        $waktu = now();
+        $perihal = filled($surat->perihal) ? $surat->perihal : 'Tidak dicantumkan';
 
-        if ($pegawaiLama !== null && $pegawaiBaru !== null) {
-            return $this->record(
-                $surat,
-                $actor,
-                AktivitasSurat::TIPE_PEGAWAI_DIGANTI,
-                "{$actor->name} mengganti penanganan surat {$surat->nomor_surat} dari {$pegawaiLama->name} ke {$pegawaiBaru->name}.",
-                [
-                    'pegawai_lama_id' => $pegawaiLama->id,
-                    'pegawai_baru_id' => $pegawaiBaru->id,
-                ]
-            );
-        }
-
-        if ($pegawaiLama !== null) {
-            return $this->record(
-                $surat,
-                $actor,
-                AktivitasSurat::TIPE_PENUGASAN_DIHAPUS,
-                "{$actor->name} menghapus penugasan {$pegawaiLama->name} dari surat {$surat->nomor_surat}.",
-                ['pegawai_lama_id' => $pegawaiLama->id]
-            );
-        }
-
-        throw new \LogicException('Perubahan penugasan tidak ditemukan.');
+        return $this->record(
+            $surat,
+            $actor,
+            AktivitasSurat::TIPE_SURAT_DIHAPUS,
+            "{$actor->name} menghapus surat {$surat->nomor_surat} dari daftar aktif.",
+            [
+                'surat_id' => $surat->id,
+                'pegawai_penghapus_id' => $actor->id,
+                'nomor_surat' => $surat->nomor_surat,
+                'perihal' => $perihal,
+                'dihapus_pada' => $waktu->toIso8601String(),
+            ],
+            $waktu
+        );
     }
 
-    public function statusDiperbarui(Surat $surat, User $actor): AktivitasSurat
+    public function suratDiambil(Surat $surat, User $actor): AktivitasSurat
     {
+        return $this->record(
+            $surat,
+            $actor,
+            AktivitasSurat::TIPE_SURAT_DIAMBIL,
+            "{$actor->name} mengambil penanganan surat {$surat->nomor_surat}.",
+            ['pegawai_id' => $actor->id]
+        );
+    }
+
+    public function pengambilanDibatalkan(Surat $surat, User $actor, string $statusSebelumnya): AktivitasSurat
+    {
+        return $this->record(
+            $surat,
+            $actor,
+            AktivitasSurat::TIPE_PENGAMBILAN_DIBATALKAN,
+            "{$actor->name} membatalkan pengambilan surat {$surat->nomor_surat}. Surat kembali tersedia untuk diambil pegawai lain.",
+            [
+                'pegawai_id' => $actor->id,
+                'status_sebelumnya' => $statusSebelumnya,
+            ]
+        );
+    }
+
+    public function statusDiperbarui(Surat $surat, User $actor, ?string $statusSebelumnya = null): AktivitasSurat
+    {
+        $metadata = [
+            'pegawai_id' => $actor->id,
+            'status_baru' => $surat->status,
+        ];
+
+        if ($statusSebelumnya !== null) {
+            $metadata['status_sebelumnya'] = $statusSebelumnya;
+        }
+
         return match ($surat->status) {
             Surat::STATUS_SEDANG_DIPROSES => $this->record(
                 $surat,
                 $actor,
                 AktivitasSurat::TIPE_MULAI_DIPROSES,
-                "{$actor->name} mulai memproses surat {$surat->nomor_surat}."
+                "{$actor->name} mulai memproses surat {$surat->nomor_surat}.",
+                $metadata
             ),
             Surat::STATUS_SELESAI => $this->record(
                 $surat,
                 $actor,
                 AktivitasSurat::TIPE_SELESAI,
-                "{$actor->name} menyelesaikan surat {$surat->nomor_surat}."
+                "{$actor->name} menyelesaikan surat {$surat->nomor_surat}.",
+                $metadata
             ),
             default => throw new \LogicException('Status surat tidak menghasilkan aktivitas progres.'),
         };

@@ -1,15 +1,15 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Dashboard Kepala Bidang')
-@section('pageTitle', 'Dashboard Kepala Bidang')
-@section('roleLabel', 'Kepala Bidang')
+@section('title', 'Dashboard')
+@section('pageTitle', 'Dashboard')
+@section('roleLabel', 'Pegawai')
 
 @section('content')
     <section class="dashboard-intro" id="ringkasan" aria-labelledby="intro-title">
         <div>
             <span class="section-kicker">Ringkasan hari ini</span>
             <h2 id="intro-title">Pantau pekerjaan surat dalam satu tampilan.</h2>
-            <p>Informasi surat dan progres pegawai akan tersaji di sini saat data mulai tersedia.</p>
+            <p>Ringkasan dan perkembangan penanganan surat tersaji dalam satu halaman.</p>
         </div>
         <div class="intro-date" aria-label="Tanggal hari ini">
             <span class="intro-date-icon" aria-hidden="true">
@@ -63,7 +63,7 @@
             <div class="summary-copy">
                 <span>Belum Ditangani</span>
                 <strong>{{ number_format($ringkasan['belum_ditangani'], 0, ',', '.') }}</strong>
-                <small>Menunggu penugasan</small>
+                <small>Tersedia untuk diambil</small>
             </div>
         </article>
     </section>
@@ -84,9 +84,7 @@
                     <tr>
                         <th>Nomor Surat</th>
                         <th>Tanggal Masuk</th>
-                        <th>Perihal</th>
                         <th>Pemohon / Pengirim</th>
-                        <th>Pegawai yang Menangani</th>
                         <th>Status</th>
                         <th>Aksi / Detail</th>
                     </tr>
@@ -95,16 +93,39 @@
                     @forelse ($suratTerbaru as $surat)
                         <tr>
                             <td><strong>{{ $surat->nomor_surat }}</strong></td>
-                            <td>{{ $surat->tanggal_masuk->locale('id')->translatedFormat('d M Y') }}</td>
-                            <td>{{ $surat->perihal }}</td>
+                            <td>
+                                <span class="table-date-time">
+                                    <span>{{ $surat->tanggal_masuk->locale('id')->translatedFormat('d M Y') }}</span>
+                                    <small>{{ $surat->created_at->format('H:i') }} WIB</small>
+                                </span>
+                            </td>
                             <td>{{ $surat->pemohon_pengirim }}</td>
-                            <td>{{ $surat->pegawai?->name ?? 'Belum Ditugaskan' }}</td>
                             <td><span class="status-badge status-{{ $surat->status }}">{{ $surat->status_label }}</span></td>
-                            <td><a class="table-action" href="{{ route('kepala-bidang.surat.show', $surat) }}">Lihat Detail</a></td>
+                            <td>
+                                <div class="table-actions dashboard-letter-actions">
+                                    <a class="table-action" href="{{ route('surat.show', $surat) }}">Lihat Detail</a>
+                                    <form
+                                        method="POST"
+                                        action="{{ route('surat.destroy', $surat) }}"
+                                        data-confirm-title="Konfirmasi Hapus Surat"
+                                        data-confirm-message="{{ "Apakah Anda yakin ingin menghapus surat berikut?\n\nNomor Surat: {$surat->nomor_surat}\nPerihal: ".(filled($surat->perihal) ? $surat->perihal : 'Tidak dicantumkan') }}"
+                                        data-confirm-label="Ya, Hapus Surat"
+                                        data-confirm-loading-label="Menghapus..."
+                                        data-confirm-variant="danger"
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="table-delete-action" type="submit" data-loading-label="Menghapus...">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5M14 11v5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                            <span>Hapus</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="5">
                                 <div class="table-empty">
                                     <span class="empty-icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7.5h6l2 2h8v10H4z" stroke-linejoin="round"/><path d="M9 14h6" stroke-linecap="round"/></svg>
@@ -120,72 +141,4 @@
         </div>
     </section>
 
-    <div class="dashboard-detail-grid">
-        <section class="content-card" id="monitoring" aria-labelledby="monitoring-title">
-            <div class="card-heading">
-                <div>
-                    <span class="section-kicker">Beban kerja tim</span>
-                    <h2 id="monitoring-title">Monitoring Pegawai</h2>
-                    <p>Lihat beban kerja dan progres setiap pegawai secara ringkas.</p>
-                </div>
-                <span class="record-count">{{ $pegawai->count() }} pegawai</span>
-            </div>
-
-            <div class="employee-list">
-                @forelse ($pegawai as $anggota)
-                    <article class="employee-card">
-                        <div class="employee-identity">
-                            <span class="employee-avatar" aria-hidden="true">{{ strtoupper(substr($anggota->name, 0, 1)) }}</span>
-                            <span>
-                                <strong>{{ $anggota->name }}</strong>
-                                <small>{{ $anggota->email }}</small>
-                            </span>
-                        </div>
-                        <div class="employee-metrics">
-                            <span><small>Sedang Diproses</small><strong>{{ $anggota->sedang_diproses_count }}</strong></span>
-                            <span><small>Selesai</small><strong>{{ $anggota->selesai_count }}</strong></span>
-                            <span><small>Total Ditangani</small><strong>{{ $anggota->total_ditangani_count }}</strong></span>
-                        </div>
-                        <a class="secondary-button" href="{{ route('kepala-bidang.monitoring-pegawai.show', $anggota) }}">Lihat Detail</a>
-                    </article>
-                @empty
-                    <div class="section-empty">
-                        <span class="empty-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M18 8v6M15 11h6" stroke-linecap="round"/></svg>
-                        </span>
-                        <strong>Belum ada akun pegawai</strong>
-                        <span>Akun pegawai akan muncul otomatis di sini.</span>
-                    </div>
-                @endforelse
-            </div>
-        </section>
-
-        <section class="content-card" id="aktivitas" aria-labelledby="aktivitas-title">
-            <div class="card-heading compact-heading">
-                <div>
-                    <span class="section-kicker">Jejak pekerjaan</span>
-                    <h2 id="aktivitas-title">Aktivitas Terbaru</h2>
-                    <p>Perubahan penting pada proses surat.</p>
-                </div>
-            </div>
-
-            @forelse ($aktivitasTerbaru as $aktivitas)
-                <div class="activity-item">
-                    <span class="activity-marker" aria-hidden="true"></span>
-                    <span class="activity-content">
-                        <time datetime="{{ $aktivitas->created_at->toIso8601String() }}">{{ $aktivitas->created_at->locale('id')->translatedFormat('d M Y, H:i') }} WIB</time>
-                        <p>{{ $aktivitas->deskripsi }}</p>
-                    </span>
-                </div>
-            @empty
-                <div class="section-empty activity-empty">
-                    <span class="empty-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5M12 7v5l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </span>
-                    <strong>Belum ada aktivitas</strong>
-                    <span>Aktivitas penugasan dan perubahan status surat akan muncul di sini.</span>
-                </div>
-            @endforelse
-        </section>
-    </div>
 @endsection

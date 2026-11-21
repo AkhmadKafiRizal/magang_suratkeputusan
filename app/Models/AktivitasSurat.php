@@ -13,11 +13,16 @@ class AktivitasSurat extends Model
 
     public const TIPE_SURAT_DIEDIT = 'surat_diedit';
 
-    public const TIPE_PEGAWAI_DITUGASKAN = 'pegawai_ditugaskan';
+    public const TIPE_SURAT_DIHAPUS = 'surat_dihapus';
 
-    public const TIPE_PEGAWAI_DIGANTI = 'pegawai_diganti';
+    /** Nilai lama dipertahankan agar riwayat yang sudah tersimpan tetap dapat dibaca. */
+    public const TIPE_PENANGAN_MULAI = 'pegawai_ditugaskan';
 
-    public const TIPE_PENUGASAN_DIHAPUS = 'penugasan_dihapus';
+    public const TIPE_SURAT_DIAMBIL = 'surat_diambil';
+
+    public const TIPE_PENANGAN_DIGANTI = 'pegawai_diganti';
+
+    public const TIPE_PENGAMBILAN_DIBATALKAN = 'penugasan_dihapus';
 
     public const TIPE_MULAI_DIPROSES = 'mulai_diproses';
 
@@ -32,12 +37,17 @@ class AktivitasSurat extends Model
             'label' => 'Perubahan Data',
             'tipe' => [self::TIPE_SURAT_DIEDIT],
         ],
-        'penugasan' => [
-            'label' => 'Penugasan',
+        'penghapusan' => [
+            'label' => 'Penghapusan Surat',
+            'tipe' => [self::TIPE_SURAT_DIHAPUS],
+        ],
+        'pengambilan' => [
+            'label' => 'Pengambilan Surat',
             'tipe' => [
-                self::TIPE_PEGAWAI_DITUGASKAN,
-                self::TIPE_PEGAWAI_DIGANTI,
-                self::TIPE_PENUGASAN_DIHAPUS,
+                self::TIPE_PENANGAN_MULAI,
+                self::TIPE_SURAT_DIAMBIL,
+                self::TIPE_PENANGAN_DIGANTI,
+                self::TIPE_PENGAMBILAN_DIBATALKAN,
             ],
         ],
         'mulai_diproses' => [
@@ -53,7 +63,7 @@ class AktivitasSurat extends Model
     /** @return BelongsTo<Surat, $this> */
     public function surat(): BelongsTo
     {
-        return $this->belongsTo(Surat::class);
+        return $this->belongsTo(Surat::class)->withTrashed();
     }
 
     /** @return BelongsTo<User, $this> */
@@ -67,9 +77,11 @@ class AktivitasSurat extends Model
         return match ($this->tipe) {
             self::TIPE_SURAT_DICATAT => 'Surat Dicatat',
             self::TIPE_SURAT_DIEDIT => 'Surat Diedit',
-            self::TIPE_PEGAWAI_DITUGASKAN,
-            self::TIPE_PEGAWAI_DIGANTI,
-            self::TIPE_PENUGASAN_DIHAPUS => 'Penugasan',
+            self::TIPE_SURAT_DIHAPUS => 'Surat Dihapus',
+            self::TIPE_PENANGAN_MULAI,
+            self::TIPE_SURAT_DIAMBIL,
+            self::TIPE_PENANGAN_DIGANTI,
+            self::TIPE_PENGAMBILAN_DIBATALKAN => 'Pengambilan Surat',
             self::TIPE_MULAI_DIPROSES => 'Mulai Diproses',
             self::TIPE_SELESAI => 'Selesai',
             default => 'Aktivitas Surat',
@@ -81,12 +93,30 @@ class AktivitasSurat extends Model
         return match ($this->tipe) {
             self::TIPE_SURAT_DICATAT => 'dicatat',
             self::TIPE_SURAT_DIEDIT => 'diedit',
-            self::TIPE_PEGAWAI_DITUGASKAN,
-            self::TIPE_PEGAWAI_DIGANTI,
-            self::TIPE_PENUGASAN_DIHAPUS => 'penugasan',
+            self::TIPE_SURAT_DIHAPUS => 'dihapus',
+            self::TIPE_PENANGAN_MULAI,
+            self::TIPE_SURAT_DIAMBIL,
+            self::TIPE_PENANGAN_DIGANTI,
+            self::TIPE_PENGAMBILAN_DIBATALKAN => 'pengambilan',
             self::TIPE_MULAI_DIPROSES => 'diproses',
             self::TIPE_SELESAI => 'selesai',
             default => 'netral',
+        };
+    }
+
+    /**
+     * Menetralkan istilah lama dari catatan yang sudah tersimpan.
+     */
+    public function getDeskripsiTampilanAttribute(): string
+    {
+        $nomorSurat = $this->surat?->nomor_surat ?? 'tidak tersedia';
+        $namaPengguna = $this->actor?->name ?? 'Seorang pegawai';
+
+        return match ($this->tipe) {
+            self::TIPE_PENANGAN_MULAI => "{$namaPengguna} mulai menangani surat {$nomorSurat}.",
+            self::TIPE_PENANGAN_DIGANTI => "Penangan surat {$nomorSurat} diperbarui.",
+            self::TIPE_PENGAMBILAN_DIBATALKAN => "{$namaPengguna} membatalkan pengambilan surat {$nomorSurat}. Surat kembali tersedia untuk diambil pegawai lain.",
+            default => $this->deskripsi,
         };
     }
 
