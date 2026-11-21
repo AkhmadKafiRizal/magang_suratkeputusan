@@ -108,9 +108,12 @@
             <div class="activity-timeline-list">
                 @foreach ($aktivitas as $item)
                     <article class="activity-timeline-item">
-                        <div class="activity-timeline-time">
-                            <time datetime="{{ $item->created_at->toIso8601String() }}">{{ $item->created_at->locale('id')->translatedFormat('d M Y, H:i') }} WIB</time>
-                            <span>{{ $item->actor?->name ?? 'Pengguna tidak tersedia' }}</span>
+                        <div class="activity-timeline-actor">
+                            <x-user-avatar :user="$item->actor" size="small" :lazy="true" />
+                            <div class="activity-timeline-time">
+                                <time datetime="{{ $item->created_at->toIso8601String() }}">{{ $item->created_at->locale('id')->translatedFormat('d M Y, H:i') }} WIB</time>
+                                <span>{{ $item->actor?->name ?? 'Pengguna tidak tersedia' }}</span>
+                            </div>
                         </div>
                         <span class="activity-timeline-dot" aria-hidden="true"></span>
                         <div class="activity-timeline-copy">

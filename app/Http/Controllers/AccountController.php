@@ -20,6 +20,8 @@ class AccountController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
+        $uploadingPhoto = $request->hasFile('photo');
+        $removingPhoto = ! $uploadingPhoto && $request->boolean('remove_photo');
         if (is_string($request->input('username'))) {
             $request->merge(['username' => Str::lower(trim($request->input('username')))]);
         }
@@ -43,12 +45,21 @@ class AccountController extends Controller
         }
 
         $oldPhoto = $user->profile_photo_path;
+        if ($removingPhoto && ! $oldPhoto) {
+            return to_route('account.edit')->with('warning', 'Foto profil belum tersedia untuk dihapus.');
+        }
+
+        if ($removingPhoto) {
+            $data['name'] = $user->name;
+            $data['username'] = $user->username;
+        }
+
         $newPhoto = null;
-        if ($request->hasFile('photo')) {
+        if ($uploadingPhoto) {
             $newPhoto = $request->file('photo')->store('profile-photos', 'local');
             abort_unless($newPhoto, 500, 'Foto belum dapat disimpan. Silakan coba lagi.');
             $user->profile_photo_path = $newPhoto;
-        } elseif ($request->boolean('remove_photo')) {
+        } elseif ($removingPhoto) {
             $user->profile_photo_path = null;
         }
 
@@ -60,8 +71,27 @@ class AccountController extends Controller
             }
             throw $exception;
         }
-        if ($oldPhoto && $oldPhoto !== $user->profile_photo_path) {
-            Storage::disk('local')->delete($oldPhoto);
+
+        if ($oldPhoto && $oldPhoto !== $user->profile_photo_path && ! $this->deleteManagedProfilePhoto($oldPhoto)) {
+            if ($removingPhoto) {
+                try {
+                    $user->forceFill(['profile_photo_path' => $oldPhoto])->saveOrFail();
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
+
+                return to_route('account.edit')->with('error', 'Foto profil belum dapat dihapus. Silakan coba lagi.');
+            }
+
+            report(new \RuntimeException('Foto profil lama tidak dapat dibersihkan dari penyimpanan privat.'));
+        }
+
+        if ($uploadingPhoto) {
+            return to_route('account.edit')->with('success', 'Foto profil berhasil diperbarui.');
+        }
+
+        if ($removingPhoto) {
+            return to_route('account.edit')->with('success', 'Foto profil berhasil dihapus.');
         }
 
         return to_route('account.edit')->with('success', 'Pengaturan akun berhasil disimpan. Username login Anda: '.$user->username.'.');
@@ -89,12 +119,38 @@ class AccountController extends Controller
 
     public function photo(Request $request)
     {
-        $path = $request->user()->profile_photo_path;
+        return $this->profilePhotoResponse($request->user());
+    }
+
+    public function userPhoto(User $user)
+    {
+        return $this->profilePhotoResponse($user);
+    }
+
+    private function profilePhotoResponse(User $user)
+    {
+        $path = $user->profile_photo_path;
         abort_unless($path && Storage::disk('local')->exists($path), 404);
 
         return Storage::disk('local')->response($path, null, [
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    private function deleteManagedProfilePhoto(string $path): bool
+    {
+        $normalizedPath = str_replace('\\', '/', $path);
+        $isManagedPath = Str::startsWith($normalizedPath, 'profile-photos/')
+            && ! Str::contains($normalizedPath, ['../', '/..'])
+            && basename($normalizedPath) !== '';
+
+        if (! $isManagedPath) {
+            return false;
+        }
+
+        $disk = Storage::disk('local');
+
+        return ! $disk->exists($normalizedPath) || $disk->delete($normalizedPath);
     }
 }

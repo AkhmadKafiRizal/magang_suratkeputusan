@@ -77,6 +77,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/pengaturan-akun', [AccountController::class, 'update'])->name('account.update');
     Route::put('/pengaturan-akun/kata-sandi', [AccountController::class, 'password'])->name('account.password');
     Route::get('/pengaturan-akun/foto', [AccountController::class, 'photo'])->name('account.photo');
+    Route::get('/pengguna/{user}/foto-profil', [AccountController::class, 'userPhoto'])->name('users.photo');
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 

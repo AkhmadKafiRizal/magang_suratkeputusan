@@ -41,8 +41,14 @@
         <div class="detail-history-list">
             @forelse ($aktivitasTerbaru as $aktivitas)
                 <div class="detail-history-item">
-                    <time datetime="{{ $aktivitas->created_at->toIso8601String() }}">{{ $aktivitas->created_at->locale('id')->translatedFormat('H:i') }} WIB</time>
-                    <span>{{ $aktivitas->deskripsi_tampilan }}</span>
+                    <div class="detail-history-leading">
+                        <x-user-avatar :user="$aktivitas->actor" size="small" :lazy="true" />
+                        <time datetime="{{ $aktivitas->created_at->toIso8601String() }}">{{ $aktivitas->created_at->locale('id')->translatedFormat('H:i') }} WIB</time>
+                    </div>
+                    <div class="detail-history-copy">
+                        <span>{{ $aktivitas->deskripsi_tampilan }}</span>
+                        <small>{{ $aktivitas->actor?->name ?? 'Pelaku tidak tersedia' }}</small>
+                    </div>
                 </div>
             @empty
                 <div class="section-empty detail-history-empty">

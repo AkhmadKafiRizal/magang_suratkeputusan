@@ -199,6 +199,23 @@ document.querySelectorAll('input[type="date"][data-open-date-picker]').forEach((
     });
 });
 
+document.querySelectorAll('[data-user-avatar-image]').forEach((image) => {
+    const showFallback = () => {
+        image.hidden = true;
+        const fallback = image.parentElement?.querySelector('[data-user-avatar-fallback]');
+
+        if (fallback) {
+            fallback.hidden = false;
+        }
+    };
+
+    image.addEventListener('error', showFallback, { once: true });
+
+    if (image.complete && image.naturalWidth === 0) {
+        showFallback();
+    }
+});
+
 const dismissToast = (toast) => {
     if (!toast || toast.classList.contains('is-leaving')) {
         return;
@@ -574,10 +591,394 @@ const submitQuickStatus = async (form) => {
     }
 };
 
+document.querySelectorAll('[data-profile-photo-form]').forEach((form) => {
+    const input = form.querySelector('[data-profile-photo-input]');
+    const preview = form.querySelector('[data-profile-photo-preview]');
+    const fileName = form.querySelector('[data-profile-photo-file-name]');
+    const error = form.querySelector('[data-profile-photo-error]');
+    const saveButton = form.querySelector('[data-profile-photo-save]');
+    const cancelButton = form.querySelector('[data-profile-photo-cancel]');
+    const cropModal = document.querySelector('[data-profile-crop-modal]');
+    const cropCanvas = cropModal?.querySelector('[data-profile-crop-canvas]');
+    const cropZoom = cropModal?.querySelector('[data-profile-crop-zoom]');
+    const cropZoomOutput = cropModal?.querySelector('[data-profile-crop-zoom-output]');
+    const cropApplyButton = cropModal?.querySelector('[data-profile-crop-apply]');
+    const cropError = cropModal?.querySelector('[data-profile-crop-error]');
+
+    if (
+        !input || !preview || !fileName || !error || !saveButton || !cancelButton
+        || !cropModal || !cropCanvas || !cropZoom || !cropZoomOutput || !cropApplyButton || !cropError
+    ) {
+        return;
+    }
+
+    const cropContext = cropCanvas.getContext('2d', { alpha: false });
+
+    if (!cropContext) {
+        return;
+    }
+
+    const savedPreview = [...preview.childNodes].map((node) => node.cloneNode(true));
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const maximumSize = 2 * 1024 * 1024;
+    const outputSize = 512;
+    let previewUrl = null;
+    let cropSourceUrl = null;
+    let cropImage = null;
+    let cropZoomValue = 1;
+    let cropOffsetX = 0;
+    let cropOffsetY = 0;
+    let activePointer = null;
+    let pointerX = 0;
+    let pointerY = 0;
+    let appliedCropFile = null;
+    let appliedSourceName = '';
+    let selectedSourceName = '';
+    let imageLoadVersion = 0;
+    let cropCloseTimer = null;
+
+    const releasePreviewUrl = () => {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
+    };
+
+    const releaseCropSource = () => {
+        if (cropSourceUrl) {
+            URL.revokeObjectURL(cropSourceUrl);
+            cropSourceUrl = null;
+        }
+
+        cropImage = null;
+    };
+
+    const setInputFile = (file) => {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+    };
+
+    const restoreSavedPreview = () => {
+        releasePreviewUrl();
+        preview.replaceChildren(...savedPreview.map((node) => node.cloneNode(true)));
+        fileName.textContent = 'Belum ada foto baru yang dipilih.';
+        error.textContent = '';
+        error.hidden = true;
+        input.removeAttribute('aria-invalid');
+        saveButton.disabled = true;
+        cancelButton.hidden = true;
+    };
+
+    const showAppliedPreview = () => {
+        if (!appliedCropFile) {
+            input.value = '';
+            restoreSavedPreview();
+            return;
+        }
+
+        setInputFile(appliedCropFile);
+        releasePreviewUrl();
+        previewUrl = URL.createObjectURL(appliedCropFile);
+
+        const image = document.createElement('img');
+        image.src = previewUrl;
+        image.alt = `Preview hasil crop foto profil: ${appliedSourceName}`;
+        preview.replaceChildren(image);
+        fileName.textContent = `Hasil crop siap disimpan: ${appliedSourceName}`;
+        error.textContent = '';
+        error.hidden = true;
+        input.removeAttribute('aria-invalid');
+        saveButton.disabled = false;
+        cancelButton.hidden = false;
+    };
+
+    const resetSelection = () => {
+        appliedCropFile = null;
+        appliedSourceName = '';
+        input.value = '';
+        restoreSavedPreview();
+    };
+
+    const rejectFile = (message) => {
+        resetSelection();
+        error.textContent = message;
+        error.hidden = false;
+        input.setAttribute('aria-invalid', 'true');
+        fileName.textContent = 'Foto belum dipilih.';
+    };
+
+    const cropGeometry = () => {
+        if (!cropImage) {
+            return null;
+        }
+
+        const baseScale = Math.max(outputSize / cropImage.naturalWidth, outputSize / cropImage.naturalHeight);
+        const scale = baseScale * cropZoomValue;
+        const width = cropImage.naturalWidth * scale;
+        const height = cropImage.naturalHeight * scale;
+        const maximumOffsetX = Math.max(0, (width - outputSize) / 2);
+        const maximumOffsetY = Math.max(0, (height - outputSize) / 2);
+
+        cropOffsetX = Math.max(-maximumOffsetX, Math.min(maximumOffsetX, cropOffsetX));
+        cropOffsetY = Math.max(-maximumOffsetY, Math.min(maximumOffsetY, cropOffsetY));
+
+        return {
+            width,
+            height,
+            x: (outputSize - width) / 2 + cropOffsetX,
+            y: (outputSize - height) / 2 + cropOffsetY,
+        };
+    };
+
+    const renderCrop = () => {
+        const geometry = cropGeometry();
+
+        if (!geometry || !cropImage) {
+            return;
+        }
+
+        cropContext.fillStyle = '#ffffff';
+        cropContext.fillRect(0, 0, outputSize, outputSize);
+        cropContext.drawImage(cropImage, geometry.x, geometry.y, geometry.width, geometry.height);
+        cropZoomOutput.textContent = `${Math.round(cropZoomValue * 100)}%`;
+    };
+
+    const closeCropModal = (focusTarget = input) => {
+        window.clearTimeout(cropCloseTimer);
+        cropModal.classList.remove('is-open');
+        document.body.classList.remove('modal-is-open');
+        cropCloseTimer = window.setTimeout(() => {
+            cropModal.hidden = true;
+        }, 200);
+        focusTarget?.focus();
+    };
+
+    const openCropModal = () => {
+        window.clearTimeout(cropCloseTimer);
+        cropModal.hidden = false;
+        document.body.classList.add('modal-is-open');
+        window.requestAnimationFrame(() => {
+            cropModal.classList.add('is-open');
+            cropCanvas.focus();
+        });
+    };
+
+    const cancelCrop = () => {
+        imageLoadVersion += 1;
+        releaseCropSource();
+        closeCropModal(input);
+        showAppliedPreview();
+    };
+
+    const loadCropImage = (file) => {
+        const currentVersion = ++imageLoadVersion;
+        releaseCropSource();
+        cropSourceUrl = URL.createObjectURL(file);
+
+        const image = new Image();
+        image.decoding = 'async';
+        image.onload = () => {
+            if (currentVersion !== imageLoadVersion) {
+                return;
+            }
+
+            if (!image.naturalWidth || !image.naturalHeight) {
+                releaseCropSource();
+                rejectFile('Foto tidak dapat dibaca. Silakan pilih file gambar lain.');
+                return;
+            }
+
+            cropImage = image;
+            cropZoomValue = 1;
+            cropOffsetX = 0;
+            cropOffsetY = 0;
+            cropZoom.value = '1';
+            cropError.textContent = '';
+            cropError.hidden = true;
+            renderCrop();
+            openCropModal();
+        };
+        image.onerror = () => {
+            if (currentVersion !== imageLoadVersion) {
+                return;
+            }
+
+            releaseCropSource();
+            rejectFile('Foto rusak atau tidak dapat diproses. Silakan pilih foto lain.');
+        };
+        image.src = cropSourceUrl;
+    };
+
+    input.addEventListener('change', () => {
+        const file = input.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        if (!allowedTypes.includes(file.type)) {
+            rejectFile('Gunakan foto JPG, PNG, atau WebP.');
+            return;
+        }
+
+        if (file.size > maximumSize) {
+            rejectFile('Ukuran foto maksimal 2 MB.');
+            return;
+        }
+
+        selectedSourceName = file.name;
+        input.value = '';
+        fileName.textContent = `Atur crop untuk: ${selectedSourceName}`;
+        error.textContent = '';
+        error.hidden = true;
+        input.removeAttribute('aria-invalid');
+        saveButton.disabled = true;
+        loadCropImage(file);
+    });
+
+    cancelButton.addEventListener('click', () => {
+        imageLoadVersion += 1;
+        releaseCropSource();
+        resetSelection();
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+    });
+
+    cropZoom.addEventListener('input', () => {
+        cropZoomValue = Number(cropZoom.value);
+        renderCrop();
+    });
+
+    cropCanvas.addEventListener('pointerdown', (event) => {
+        activePointer = event.pointerId;
+        pointerX = event.clientX;
+        pointerY = event.clientY;
+        cropCanvas.setPointerCapture(event.pointerId);
+        event.preventDefault();
+    });
+
+    cropCanvas.addEventListener('pointermove', (event) => {
+        if (activePointer !== event.pointerId) {
+            return;
+        }
+
+        const bounds = cropCanvas.getBoundingClientRect();
+        const ratio = outputSize / bounds.width;
+        cropOffsetX += (event.clientX - pointerX) * ratio;
+        cropOffsetY += (event.clientY - pointerY) * ratio;
+        pointerX = event.clientX;
+        pointerY = event.clientY;
+        renderCrop();
+        event.preventDefault();
+    });
+
+    const stopDragging = (event) => {
+        if (activePointer !== event.pointerId) {
+            return;
+        }
+
+        if (cropCanvas.hasPointerCapture(event.pointerId)) {
+            cropCanvas.releasePointerCapture(event.pointerId);
+        }
+
+        activePointer = null;
+    };
+
+    cropCanvas.addEventListener('pointerup', stopDragging);
+    cropCanvas.addEventListener('pointercancel', stopDragging);
+
+    cropCanvas.addEventListener('keydown', (event) => {
+        const movement = event.shiftKey ? 24 : 8;
+
+        if (event.key === 'ArrowLeft') cropOffsetX -= movement;
+        else if (event.key === 'ArrowRight') cropOffsetX += movement;
+        else if (event.key === 'ArrowUp') cropOffsetY -= movement;
+        else if (event.key === 'ArrowDown') cropOffsetY += movement;
+        else return;
+
+        event.preventDefault();
+        renderCrop();
+    });
+
+    cropModal.querySelectorAll('[data-profile-crop-cancel]').forEach((button) => {
+        button.addEventListener('click', cancelCrop);
+    });
+
+    cropApplyButton.addEventListener('click', () => {
+        if (!cropImage || cropApplyButton.disabled) {
+            return;
+        }
+
+        renderCrop();
+        cropApplyButton.disabled = true;
+        replaceButtonLabel(cropApplyButton, 'Menerapkan...', true);
+
+        cropCanvas.toBlob((blob) => {
+            try {
+                if (!blob || blob.size > maximumSize) {
+                    throw new Error('Hasil crop belum dapat dibuat. Silakan atur ulang foto.');
+                }
+
+                const croppedFile = new File([blob], 'foto-profil-crop.jpg', {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                });
+                setInputFile(croppedFile);
+                appliedCropFile = croppedFile;
+                appliedSourceName = selectedSourceName;
+                showAppliedPreview();
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                releaseCropSource();
+                closeCropModal(saveButton);
+            } catch (cropFailure) {
+                cropError.textContent = cropFailure instanceof Error
+                    ? cropFailure.message
+                    : 'Hasil crop belum dapat dibuat. Silakan coba lagi.';
+                cropError.hidden = false;
+            } finally {
+                cropApplyButton.disabled = false;
+                replaceButtonLabel(cropApplyButton, 'Terapkan Crop');
+            }
+        }, 'image/jpeg', 0.9);
+    });
+
+    cropModal.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            cancelCrop();
+            return;
+        }
+
+        if (event.key !== 'Tab') {
+            return;
+        }
+
+        const focusable = [...cropModal.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]')];
+        const first = focusable[0];
+        const last = focusable.at(-1);
+
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+        }
+    });
+
+    window.addEventListener('pagehide', () => {
+        releasePreviewUrl();
+        releaseCropSource();
+    }, { once: true });
+});
+
 const serializeForm = (form) => JSON.stringify(
     [...new FormData(form).entries()]
         .filter(([name]) => !['_token', '_method'].includes(name))
-        .map(([name, value]) => [name, String(value)])
+        .map(([name, value]) => [name, value instanceof File
+            ? `${value.name}:${value.size}:${value.type}`
+            : String(value)])
         .sort(([firstName], [secondName]) => firstName.localeCompare(secondName)),
 );
 
