@@ -52,7 +52,7 @@ class SuratSayaController extends Controller
     public function show(Surat $surat): View
     {
         Gate::authorize('viewMine', $surat);
-        $surat->load(['pegawai:id,name,email', 'kategoriSurat:id,nama,slug']);
+        $surat->load(['pegawai:id,name,email,profile_photo_path', 'kategoriSurat:id,nama,slug']);
 
         return view('pegawai.surat.show', compact('surat'));
     }

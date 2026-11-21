@@ -107,9 +107,9 @@ class SuratController extends Controller
 
     public function show(Surat $surat): View
     {
-        $surat->load(['pegawai:id,name,email', 'kategoriSurat:id,nama,slug']);
+        $surat->load(['pegawai:id,name,email,profile_photo_path', 'kategoriSurat:id,nama,slug']);
         $aktivitasTerbaru = $surat->aktivitas()
-            ->with('actor:id,name')
+            ->with('actor:id,name,profile_photo_path')
             ->latest('created_at')
             ->latest('id')
             ->limit(5)

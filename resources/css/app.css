@@ -1984,6 +1984,85 @@
     font-weight: 650;
 }
 
+.user-avatar {
+    position: relative;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid #cbdcf0;
+    border-radius: 50%;
+    color: var(--dashboard-blue-800);
+    background: var(--dashboard-blue-100);
+    font-weight: 700;
+    line-height: 1;
+}
+
+.user-avatar-small {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+}
+
+.user-avatar-medium {
+    width: 46px;
+    height: 46px;
+    font-size: 15px;
+}
+
+.user-avatar-image,
+.user-avatar-fallback {
+    width: 100%;
+    height: 100%;
+}
+
+.user-avatar-image {
+    display: block;
+    object-fit: cover;
+}
+
+.user-avatar-fallback {
+    display: grid;
+    place-items: center;
+}
+
+.user-avatar-system {
+    color: #64758a;
+    border-color: #d7e0ea;
+    background: #f1f4f7;
+}
+
+.user-avatar-system-icon {
+    width: 62%;
+    height: 62%;
+}
+
+.detail-handler-identity {
+    display: flex !important;
+    align-items: center;
+    gap: 11px !important;
+}
+
+.detail-handler-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.detail-handler-copy strong {
+    color: var(--dashboard-blue-900);
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 1.4;
+}
+
+.detail-handler-copy small {
+    color: #68798e;
+    font-size: 12px;
+    font-weight: 550;
+    line-height: 1.4;
+}
+
 @media (max-width: 1180px) {
     .detail-sections {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2764,6 +2843,13 @@ body:not(.dashboard-body) .toast-region {
     border-bottom: 0;
 }
 
+.activity-timeline-actor {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
 .activity-timeline-time {
     display: grid;
     gap: 5px;
@@ -2904,7 +2990,8 @@ body:not(.dashboard-body) .toast-region {
 
 .detail-history-item {
     display: grid;
-    grid-template-columns: 85px minmax(0, 1fr);
+    grid-template-columns: minmax(130px, 155px) minmax(0, 1fr);
+    align-items: center;
     gap: 14px;
     padding: 15px 0;
     border-bottom: 1px solid #e7edf4;
@@ -2914,16 +3001,36 @@ body:not(.dashboard-body) .toast-region {
     border-bottom: 0;
 }
 
-.detail-history-item time {
+.detail-history-leading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.detail-history-leading time {
     color: var(--dashboard-blue-700);
     font-size: 14px;
     font-weight: 700;
+    white-space: nowrap;
 }
 
-.detail-history-item span {
+.detail-history-copy {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.detail-history-copy > span {
     color: #334a64;
     font-size: 14px;
     line-height: 1.55;
+}
+
+.detail-history-copy > small {
+    color: #718197;
+    font-size: 12px;
+    line-height: 1.4;
 }
 
 .detail-history-empty {
@@ -3484,8 +3591,29 @@ body:not(.dashboard-body) .toast-region {
 .account-card-heading p { color: var(--dashboard-muted); font-size: 14px; line-height: 1.6; margin: 0; }
 .account-settings-card .account-photo-row { padding: 18px; background: var(--dashboard-blue-50); border: 1px solid var(--dashboard-line); border-radius: 14px; margin: 0 0 24px; gap: 16px; }
 .account-settings-card .account-avatar { width: 72px; height: 72px; flex-basis: 72px; }
-.account-settings-card .account-remove-photo { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 12px; }
-.account-settings-card .account-remove-photo input { margin: 0; flex-shrink: 0; }
+.account-photo-delete-form { display: none !important; }
+.account-photo-field { gap: 7px; }
+.account-photo-file-name { color: var(--dashboard-blue-800); font-size: 12px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.account-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 4px; }
+.account-photo-actions button { min-height: 39px; }
+.account-photo-actions [data-profile-photo-save]:disabled { cursor: not-allowed; opacity: .55; }
+.account-photo-delete-button { display: inline-flex; align-items: center; margin-left: 5px; }
+.account-photo-delete-button svg { flex: 0 0 auto; width: 17px; height: 17px; margin-right: 7px; }
+.profile-crop-dialog { width: min(100%, 620px); }
+.profile-crop-heading { display: flex; align-items: flex-start; gap: 13px; margin: 0 42px 18px 0; }
+.profile-crop-heading h2 { margin: 1px 0 5px; color: var(--dashboard-ink); font-size: 21px; line-height: 1.3; }
+.profile-crop-heading p { margin: 0; color: var(--dashboard-muted); font-size: 14px; line-height: 1.55; }
+.profile-crop-stage { position: relative; width: min(100%, 360px); aspect-ratio: 1; margin: 0 auto; overflow: hidden; border: 1px solid #c7d6e7; border-radius: 14px; background: #dce6f0; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .45); touch-action: none; user-select: none; }
+.profile-crop-stage canvas { display: block; width: 100%; height: 100%; cursor: grab; outline: none; touch-action: none; }
+.profile-crop-stage canvas:active { cursor: grabbing; }
+.profile-crop-stage canvas:focus-visible { box-shadow: inset 0 0 0 4px rgba(35, 116, 209, .42); }
+.profile-crop-guide { position: absolute; z-index: 1; inset: 0; border: 2px solid rgba(255, 255, 255, .96); border-radius: 50%; box-shadow: 0 0 0 999px rgba(7, 28, 52, .48), inset 0 0 0 1px rgba(15, 56, 104, .28); pointer-events: none; }
+.profile-crop-hint { margin: 10px 0 0; color: var(--dashboard-muted); font-size: 12px; line-height: 1.5; text-align: center; }
+.profile-crop-zoom { display: grid; grid-template-columns: auto minmax(0, 1fr) 48px; align-items: center; gap: 12px; margin-top: 17px; }
+.profile-crop-zoom label { color: var(--dashboard-ink); font-size: 13px; font-weight: 700; }
+.profile-crop-zoom input { width: 100%; min-height: 28px; padding: 0; cursor: pointer; accent-color: var(--dashboard-blue-700); }
+.profile-crop-zoom output { color: var(--dashboard-blue-800); font-size: 13px; font-weight: 700; text-align: right; }
+.profile-crop-error { margin-top: 10px; text-align: center; }
 .account-security-card .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .account-settings-card .form-actions { margin-top: 0; padding-top: 16px; }
 .account-settings-card input[readonly] { background: var(--dashboard-blue-50); color: var(--dashboard-muted); }
@@ -3495,6 +3623,18 @@ body:not(.dashboard-body) .toast-region {
 .account-recovery-panel form { grid-area: action; }
 .account-recovery-panel .outline-button { width: 100%; white-space: normal; text-align: center; }
 @media (max-width: 1200px) { .account-settings-grid { grid-template-columns: minmax(0, 1fr); } }
+
+@media (max-width: 560px) {
+    .account-photo-actions { align-items: stretch; }
+    .account-photo-actions button { width: 100%; justify-content: center; }
+    .account-photo-delete-button { margin-left: 0; margin-top: 4px; }
+    .profile-crop-dialog { padding: 19px 16px 16px; }
+    .profile-crop-heading { margin-right: 35px; }
+    .profile-crop-heading .account-card-icon { display: none; }
+    .profile-crop-stage { width: min(100%, calc(100vh - 320px)); min-width: 220px; }
+    .profile-crop-actions { align-items: stretch; }
+    .profile-crop-actions button { flex: 1 1 0; justify-content: center; }
+}
 
 @media (min-width: 1201px) {
     .dashboard-main-account { padding-top: 24px; padding-bottom: 18px; }

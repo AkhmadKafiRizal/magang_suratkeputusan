@@ -94,6 +94,58 @@ class AccountSettingsTest extends TestCase
             ->assertSee('Ubah kata sandi');
     }
 
+    public function test_profile_photo_preview_controls_are_present_without_uploading_any_file(): void
+    {
+        $user = User::factory()->create(['profile_photo_path' => null]);
+
+        $this->actingAs($user)->get(route('account.edit'))
+            ->assertOk()
+            ->assertSee('data-profile-photo-form', false)
+            ->assertSee('data-profile-photo-preview', false)
+            ->assertSee('data-profile-photo-input', false)
+            ->assertSee('data-profile-photo-save', false)
+            ->assertSee('data-profile-photo-cancel', false)
+            ->assertSee('data-profile-crop-modal', false)
+            ->assertSee('data-profile-crop-canvas', false)
+            ->assertSee('width="512" height="512"', false)
+            ->assertSee('data-profile-crop-zoom', false)
+            ->assertSee('Terapkan Crop')
+            ->assertSee('Atur Crop Foto Profil')
+            ->assertSee('Simpan Foto')
+            ->assertSee('Batalkan Pilihan')
+            ->assertDontSee('Hapus Foto Profil');
+
+        $this->assertNull($user->fresh()->profile_photo_path);
+        $javascript = file_get_contents(resource_path('js/app.js'));
+        $this->assertStringContainsString('URL.createObjectURL(file)', $javascript);
+        $this->assertStringContainsString('URL.revokeObjectURL(previewUrl)', $javascript);
+        $this->assertStringContainsString("cropCanvas.addEventListener('pointerdown'", $javascript);
+        $this->assertStringContainsString("cropCanvas.addEventListener('pointermove'", $javascript);
+        $this->assertStringContainsString('cropCanvas.toBlob', $javascript);
+        $this->assertStringContainsString('const outputSize = 512', $javascript);
+        $this->assertStringContainsString('new DataTransfer()', $javascript);
+    }
+
+    public function test_existing_photo_displays_clear_delete_action_and_confirmation_copy(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create(['profile_photo_path' => 'profile-photos/pegawai.jpg']);
+        Storage::disk('local')->put($user->profile_photo_path, 'photo-content');
+
+        $this->actingAs($user)->get(route('account.edit'))
+            ->assertOk()
+            ->assertSee(route('account.photo'))
+            ->assertSee('Hapus Foto Profil')
+            ->assertSee('class="primary-button danger-button account-photo-delete-button"', false)
+            ->assertSee('data-confirm-title="Hapus Foto Profil?"', false)
+            ->assertSee('Apakah Anda yakin ingin menghapus foto profil? Foto akan diganti dengan avatar inisial nama Anda.')
+            ->assertSee('data-confirm-label="Ya, Hapus Foto"', false)
+            ->assertSee('data-confirm-variant="danger"', false);
+
+        $css = file_get_contents(resource_path('css/app.css'));
+        $this->assertMatchesRegularExpression('/\.danger-button\s*\{[^}]*background:\s*#b42318/s', $css);
+    }
+
     public function test_updated_username_can_login_with_existing_password(): void
     {
         $user = User::factory()->create(['password' => 'correct-password']);
@@ -124,17 +176,30 @@ class AccountSettingsTest extends TestCase
     {
         Storage::fake('local');
         $user = User::factory()->create();
+        $other = User::factory()->create(['profile_photo_path' => 'profile-photos/other.jpg']);
+        Storage::disk('local')->put($other->profile_photo_path, 'other-photo');
         $payload = ['name' => $user->name, 'username' => $user->username];
-        $this->actingAs($user)->put(route('account.update'), $payload + ['photo' => UploadedFile::fake()->image('photo.jpg')])->assertSessionHasNoErrors();
+        $this->actingAs($user)->put(route('account.update'), $payload + ['photo' => UploadedFile::fake()->image('photo.jpg')])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Foto profil berhasil diperbarui.');
         $first = $user->fresh()->profile_photo_path;
         Storage::disk('local')->assertExists($first);
         $this->get(route('account.photo'))->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
-        $this->put(route('account.update'), $payload + ['photo' => UploadedFile::fake()->image('new.png')])->assertSessionHasNoErrors();
+        $this->put(route('account.update'), $payload + ['photo' => UploadedFile::fake()->image('new.png')])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Foto profil berhasil diperbarui.');
         Storage::disk('local')->assertMissing($first);
         $second = $user->fresh()->profile_photo_path;
-        $this->put(route('account.update'), $payload + ['remove_photo' => '1'])->assertSessionHasNoErrors();
+        $this->put(route('account.update'), $payload + ['name' => 'Nama yang tidak boleh diterapkan', 'remove_photo' => '1'])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Foto profil berhasil dihapus.');
         Storage::disk('local')->assertMissing($second);
         $this->assertNull($user->fresh()->profile_photo_path);
+        $this->assertSame($payload['name'], $user->fresh()->name);
+        $this->assertSame('profile-photos/other.jpg', $other->fresh()->profile_photo_path);
+        Storage::disk('local')->assertExists('profile-photos/other.jpg');
+        $this->assertDatabaseHas('users', ['id' => $user->id]);
+        $this->assertDatabaseHas('users', ['id' => $other->id]);
     }
 
     public function test_invalid_photo_is_rejected(): void
@@ -144,8 +209,46 @@ class AccountSettingsTest extends TestCase
         $this->actingAs($user)->put(route('account.update'), [
             'name' => $user->name, 'username' => $user->username,
             'photo' => UploadedFile::fake()->create('bad.php', 1, 'text/plain'),
-        ])->assertSessionHasErrors('photo');
+        ])->assertSessionHasErrors('photo')->assertSessionMissing('success');
         $this->assertNull($user->fresh()->profile_photo_path);
+    }
+
+    public function test_cropped_512_pixel_photo_is_accepted_by_existing_upload_endpoint(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->put(route('account.update'), [
+            'name' => $user->name,
+            'username' => $user->username,
+            'photo' => UploadedFile::fake()->image('foto-profil-crop.jpg', 512, 512),
+        ])->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Foto profil berhasil diperbarui.');
+
+        $storedPhoto = $user->fresh()->profile_photo_path;
+        $this->assertNotNull($storedPhoto);
+        Storage::disk('local')->assertExists($storedPhoto);
+    }
+
+    public function test_delete_photo_does_not_claim_success_when_photo_is_missing_or_path_is_unmanaged(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create(['profile_photo_path' => null]);
+        $payload = ['name' => $user->name, 'username' => $user->username, 'remove_photo' => '1'];
+
+        $this->actingAs($user)->put(route('account.update'), $payload)
+            ->assertSessionHas('warning', 'Foto profil belum tersedia untuk dihapus.')
+            ->assertSessionMissing('success');
+
+        Storage::disk('local')->put('private-document.txt', 'must-not-be-deleted');
+        $user->forceFill(['profile_photo_path' => 'private-document.txt'])->saveOrFail();
+
+        $this->put(route('account.update'), $payload)
+            ->assertSessionHas('error', 'Foto profil belum dapat dihapus. Silakan coba lagi.')
+            ->assertSessionMissing('success');
+
+        $this->assertSame('private-document.txt', $user->fresh()->profile_photo_path);
+        Storage::disk('local')->assertExists('private-document.txt');
     }
 
     public function test_password_change_requires_current_password_and_accepts_new_login(): void

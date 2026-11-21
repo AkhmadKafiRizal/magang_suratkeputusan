@@ -21,7 +21,20 @@
             <h4 id="penanganan-surat-title">Penanganan</h4>
         </div>
         <dl class="detail-section-grid">
-            <div><dt>Pegawai yang Menangani</dt><dd class="detail-value-emphasis">{{ $surat->pegawai?->name ?? 'Belum Diambil' }}</dd></div>
+            <div>
+                <dt>Pegawai yang Menangani</dt>
+                @if ($surat->pegawai !== null)
+                    <dd class="detail-handler-identity">
+                        <x-user-avatar :user="$surat->pegawai" size="medium" />
+                        <span class="detail-handler-copy">
+                            <strong>{{ $surat->pegawai->name }}</strong>
+                            <small>Penanggung Jawab Surat</small>
+                        </span>
+                    </dd>
+                @else
+                    <dd class="detail-value-emphasis">Belum Diambil</dd>
+                @endif
+            </div>
             <div><dt>Status</dt><dd><span class="status-badge status-{{ $surat->status }}">{{ $surat->status_label }}</span></dd></div>
             <div class="detail-item-full"><dt>Keterangan</dt><dd class="preserve-lines">{{ $surat->keterangan ?: 'Tidak ada keterangan' }}</dd></div>
         </dl>

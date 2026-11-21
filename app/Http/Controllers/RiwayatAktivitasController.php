@@ -40,7 +40,7 @@ class RiwayatAktivitasController extends Controller
 
         $aktivitas = AktivitasSurat::query()
             ->with([
-                'actor:id,name',
+                'actor:id,name,profile_photo_path',
                 'surat:id,nomor_surat,pemohon_pengirim,deleted_at',
             ])
             ->when($search !== '', function ($query) use ($search): void {
