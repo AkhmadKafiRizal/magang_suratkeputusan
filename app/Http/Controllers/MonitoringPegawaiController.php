@@ -13,7 +13,6 @@ class MonitoringPegawaiController extends Controller
     {
         $pegawai = User::query()
             ->select(['id', 'name', 'email'])
-            ->where('role', User::ROLE_PEGAWAI)
             ->withMonitoringCounts()
             ->orderByRaw('belum_ditangani_count + sedang_diproses_count ASC')
             ->orderBy('name')
@@ -32,8 +31,6 @@ class MonitoringPegawaiController extends Controller
 
     public function show(Request $request, User $pegawai): View
     {
-        abort_unless($pegawai->role === User::ROLE_PEGAWAI, 404);
-
         $pegawai = User::query()
             ->select(['id', 'name', 'email'])
             ->withMonitoringCounts()
@@ -47,7 +44,7 @@ class MonitoringPegawaiController extends Controller
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('nomor_surat', 'like', "%{$search}%")
-                        ->orWhere('perihal', 'like', "%{$search}%");
+                        ->orWhere('pemohon_pengirim', 'like', "%{$search}%");
                 });
             })
             ->when($statusValid, fn ($query) => $query->where('status', $status))

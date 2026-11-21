@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AktivitasSurat;
+use App\Models\KategoriSurat;
 use App\Models\Surat;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,34 +15,112 @@ class SuratManagementTest extends TestCase
 
     public function test_guest_is_redirected_from_both_surat_areas(): void
     {
-        $this->get(route('kepala-bidang.surat.index'))->assertRedirect(route('login'));
-        $this->get(route('pegawai.surat-saya.index'))->assertRedirect(route('login'));
+        $this->get(route('surat.index'))->assertRedirect(route('login'));
+        $this->get(route('surat-saya.index'))->assertRedirect(route('login'));
     }
 
-    public function test_pegawai_cannot_access_kepala_bidang_surat_management(): void
+    public function test_pegawai_can_access_surat_management(): void
     {
         $pegawai = $this->pegawai();
 
-        $this->actingAs($pegawai)->get(route('kepala-bidang.surat.index'))->assertForbidden();
-        $this->actingAs($pegawai)->get(route('kepala-bidang.surat.create'))->assertForbidden();
+        $this->actingAs($pegawai)->get(route('surat.index'))->assertOk();
+        $this->actingAs($pegawai)
+            ->get(route('surat.create'))
+            ->assertOk()
+            ->assertSee('letter-form-card', false);
     }
 
-    public function test_kepala_bidang_can_open_data_surat(): void
+    public function test_pengguna_can_open_data_surat(): void
     {
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.surat.index'))
+        Surat::factory()->create([
+            'nomor_surat' => '2026.0002.095',
+            'pemohon_pengirim' => 'ALBERTUS ANDIKA GUNAWAN',
+            'tanggal_masuk' => '2026-02-09',
+            'status' => Surat::STATUS_SELESAI,
+            'selesai_pada' => null,
+            'keterangan' => 'Catatan administratif contoh.',
+        ]);
+
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.index'))
             ->assertOk()
             ->assertSee('Daftar Surat')
-            ->assertSee('Tambah Surat');
+            ->assertSee('Tambah Surat')
+            ->assertSee('<th>No.</th>', false)
+            ->assertSee('<th>Nomor Surat</th>', false)
+            ->assertSee('<th>Nama Pemohon</th>', false)
+            ->assertSee('<th>Status</th>', false)
+            ->assertSee('<th>Tanggal Masuk</th>', false)
+            ->assertSee('<th>Tanggal Selesai</th>', false)
+            ->assertSee('<th>Keterangan</th>', false)
+            ->assertSee('<th>Detail</th>', false)
+            ->assertSee('2026.0002.095')
+            ->assertSee('ALBERTUS ANDIKA GUNAWAN')
+            ->assertSee('status-badge status-selesai', false)
+            ->assertSee('Selesai')
+            ->assertSee('Tidak tercatat')
+            ->assertSee('Catatan administratif contoh.')
+            ->assertSee('Lihat Detail')
+            ->assertSee('href="'.route('surat.show', Surat::firstOrFail()).'"', false)
+            ->assertDontSee('<th>Perihal</th>', false)
+            ->assertDontSee('<th>Pegawai yang Menangani</th>', false)
+            ->assertDontSee('<th>Aksi</th>', false);
     }
 
-    public function test_kepala_bidang_can_create_a_surat_and_status_is_always_belum_ditangani(): void
+    public function test_data_surat_menampilkan_semua_label_status(): void
     {
-        $response = $this->actingAs($this->kepalaBidang())
-            ->post(route('kepala-bidang.surat.store'), $this->validPayload());
+        Surat::factory()->create([
+            'nomor_surat' => 'STATUS-BELUM',
+            'status' => Surat::STATUS_BELUM_DITANGANI,
+        ]);
+        Surat::factory()->create([
+            'nomor_surat' => 'STATUS-PROSES',
+            'status' => Surat::STATUS_SEDANG_DIPROSES,
+        ]);
+        Surat::factory()->create([
+            'nomor_surat' => 'STATUS-SELESAI',
+            'status' => Surat::STATUS_SELESAI,
+        ]);
+
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.index'))
+            ->assertOk()
+            ->assertSee('status-badge status-belum_ditangani', false)
+            ->assertSee('Belum Ditangani')
+            ->assertSee('status-badge status-sedang_diproses', false)
+            ->assertSee('Dalam Proses')
+            ->assertSee('status-badge status-selesai', false)
+            ->assertSee('Selesai');
+    }
+
+    public function test_data_surat_displays_times_below_entry_and_completion_dates(): void
+    {
+        Surat::factory()->create([
+            'nomor_surat' => 'JAM-DATA-SURAT/2026',
+            'tanggal_masuk' => '2026-11-12',
+            'status' => Surat::STATUS_SELESAI,
+            'selesai_pada' => '2026-11-13 16:20:00',
+            'created_at' => '2026-11-12 08:45:00',
+            'updated_at' => '2026-11-13 16:20:00',
+        ]);
+
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.index'))
+            ->assertOk()
+            ->assertSee('12 Nov 2026')
+            ->assertSee('08:45 WIB')
+            ->assertSee('13 Nov 2026')
+            ->assertSee('16:20 WIB')
+            ->assertSee('class="table-date-time"', false);
+    }
+
+    public function test_pengguna_can_create_a_surat_and_status_is_always_belum_ditangani(): void
+    {
+        $response = $this->actingAs($this->pengguna())
+            ->post(route('surat.store'), $this->validPayload());
 
         $surat = Surat::firstOrFail();
-        $response->assertRedirect(route('kepala-bidang.surat.show', $surat));
+        $response->assertRedirect(route('surat.show', $surat));
         $this->assertSame(Surat::STATUS_BELUM_DITANGANI, $surat->status);
         $this->assertNull($surat->pegawai_id);
         $this->assertNull($surat->ditugaskan_pada);
@@ -49,49 +128,137 @@ class SuratManagementTest extends TestCase
         $this->assertNull($surat->selesai_pada);
     }
 
+    public function test_nomor_surat_yang_sudah_ada_ditolak_dengan_pesan_yang_jelas(): void
+    {
+        Surat::factory()->create([
+            'nomor_surat' => '001/UNIK/2026',
+            'pemohon_pengirim' => 'PEMOHON YANG SAMA',
+        ]);
+
+        $this->actingAs($this->pengguna())
+            ->post(route('surat.store'), $this->validPayload([
+                'nomor_surat' => '  001/unik/2026  ',
+                'pemohon_pengirim' => 'PEMOHON YANG SAMA',
+            ]))
+            ->assertSessionHasErrors([
+                'nomor_surat' => 'Nomor surat sudah ada. Koreksi kembali input nomor surat Anda.',
+            ]);
+
+        $this->assertDatabaseCount('surats', 1);
+    }
+
+    public function test_nama_pemohon_boleh_sama_selama_nomor_surat_berbeda(): void
+    {
+        Surat::factory()->create([
+            'nomor_surat' => '001/NAMA-SAMA/2026',
+            'pemohon_pengirim' => 'NAMA PEMOHON SAMA',
+        ]);
+
+        $this->actingAs($this->pengguna())
+            ->post(route('surat.store'), $this->validPayload([
+                'nomor_surat' => '  002/NAMA-SAMA/2026  ',
+                'pemohon_pengirim' => 'NAMA PEMOHON SAMA',
+            ]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('surats', [
+            'nomor_surat' => '002/NAMA-SAMA/2026',
+            'pemohon_pengirim' => 'NAMA PEMOHON SAMA',
+        ]);
+        $this->assertDatabaseCount('surats', 2);
+    }
+
+    public function test_edit_boleh_mempertahankan_nomor_sendiri_tetapi_tidak_boleh_memakai_nomor_surat_lain(): void
+    {
+        $suratPertama = Surat::factory()->create(['nomor_surat' => '001/EDIT/2026']);
+        $suratKedua = Surat::factory()->create(['nomor_surat' => '002/EDIT/2026']);
+        $pengguna = $this->pengguna();
+
+        $this->actingAs($pengguna)
+            ->put(route('surat.update', $suratKedua), $this->validPayload([
+                'nomor_surat' => '002/EDIT/2026',
+            ]))
+            ->assertRedirect(route('surat.show', $suratKedua));
+
+        $this->actingAs($pengguna)
+            ->put(route('surat.update', $suratKedua), $this->validPayload([
+                'nomor_surat' => $suratPertama->nomor_surat,
+            ]))
+            ->assertSessionHasErrors([
+                'nomor_surat' => 'Nomor surat sudah ada. Koreksi kembali input nomor surat Anda.',
+            ]);
+
+        $this->assertSame('002/EDIT/2026', $suratKedua->fresh()->nomor_surat);
+    }
+
     public function test_create_form_has_no_status_input_and_shows_initial_status_information(): void
     {
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.surat.create'))
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.create'))
             ->assertOk()
             ->assertDontSee('name="status"', false)
             ->assertSee('Status awal surat otomatis Belum Ditangani.');
     }
 
-    public function test_kepala_bidang_may_assign_a_pegawai_during_creation(): void
+    public function test_perihal_is_not_shown_and_is_not_required_when_recording_a_letter(): void
     {
-        $pegawai = $this->pegawai(['name' => 'Revina']);
-        $this->travelTo(now()->startOfSecond());
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.create'))
+            ->assertOk()
+            ->assertDontSee('name="perihal"', false)
+            ->assertDontSee('>Perihal<', false);
 
-        $this->actingAs($this->kepalaBidang())
-            ->post(route('kepala-bidang.surat.store'), $this->validPayload([
-                'pegawai_id' => $pegawai->id,
-            ]))
+        $this->actingAs($this->pengguna())
+            ->post(route('surat.store'), $this->validPayload())
             ->assertRedirect();
 
-        $surat = Surat::firstOrFail();
-        $this->assertSame($pegawai->id, $surat->pegawai_id);
-        $this->assertSame(Surat::STATUS_BELUM_DITANGANI, $surat->status);
-        $this->assertTrue($surat->ditugaskan_pada->equalTo(now()));
-        $this->assertNull($surat->mulai_diproses_pada);
+        $this->assertNull(Surat::firstOrFail()->perihal);
     }
 
-    public function test_unassigned_surat_detail_shows_a_clear_assignment_action(): void
+    public function test_pengguna_tidak_dapat_memilih_penangan_lain_saat_mencatat_surat(): void
+    {
+        $pegawai = $this->pegawai(['name' => 'Revina']);
+
+        $this->actingAs($this->pengguna())
+            ->post(route('surat.store'), $this->validPayload([
+                'pegawai_id' => $pegawai->id,
+            ]))
+            ->assertSessionHasErrors([
+                'pegawai_id' => 'Penangan surat tidak dapat dipilih melalui formulir ini. Setiap pegawai harus mengambil sendiri surat melalui menu Ambil Surat.',
+            ]);
+
+        $this->assertDatabaseCount('surats', 0);
+    }
+
+    public function test_halaman_surat_tidak_menyediakan_kontrol_untuk_memilih_penangan(): void
     {
         $surat = Surat::factory()->create();
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.surat.show', $surat))
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.create'))
             ->assertOk()
-            ->assertSee('Belum Ditugaskan')
-            ->assertSee('Tugaskan Pegawai')
-            ->assertSee(route('kepala-bidang.surat.edit', $surat).'#pegawai_id');
+            ->assertDontSee('name="pegawai_id"', false)
+            ->assertDontSee('Tugaskan Pegawai');
+
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.edit', $surat))
+            ->assertOk()
+            ->assertDontSee('name="pegawai_id"', false)
+            ->assertDontSee('data-assignment-confirm', false);
+
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.show', $surat))
+            ->assertOk()
+            ->assertSee('Belum Diambil')
+            ->assertDontSee('Ditugaskan')
+            ->assertDontSee('Tugaskan Pegawai')
+            ->assertDontSee('#pegawai_id');
     }
 
     public function test_catatan_administratif_is_saved_to_keterangan(): void
     {
-        $this->actingAs($this->kepalaBidang())
-            ->post(route('kepala-bidang.surat.store'), $this->validPayload([
+        $this->actingAs($this->pengguna())
+            ->post(route('surat.store'), $this->validPayload([
                 'keterangan' => 'Berkas KTP perlu diperiksa kembali.',
             ]))
             ->assertRedirect();
@@ -109,22 +276,22 @@ class SuratManagementTest extends TestCase
             'keterangan' => null,
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.surat.show', $surat))
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.show', $surat))
             ->assertOk()
-            ->assertSee('Catatan Administratif')
-            ->assertSee('Tidak ada catatan administratif');
+            ->assertSee('Keterangan')
+            ->assertSee('Tidak ada keterangan');
 
         $this->actingAs($pegawai)
-            ->get(route('pegawai.surat-saya.show', $surat))
+            ->get(route('surat-saya.show', $surat))
             ->assertOk()
-            ->assertSee('Tidak ada catatan administratif');
+            ->assertSee('Tidak ada keterangan');
     }
 
-    public function test_kepala_bidang_cannot_send_sedang_diproses_status_manually(): void
+    public function test_pengguna_cannot_send_sedang_diproses_status_manually(): void
     {
-        $this->actingAs($this->kepalaBidang())
-            ->post(route('kepala-bidang.surat.store'), $this->validPayload([
+        $this->actingAs($this->pengguna())
+            ->post(route('surat.store'), $this->validPayload([
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
             ]))
             ->assertSessionHasErrors('status');
@@ -132,12 +299,12 @@ class SuratManagementTest extends TestCase
         $this->assertDatabaseCount('surats', 0);
     }
 
-    public function test_kepala_bidang_cannot_send_selesai_status_manually(): void
+    public function test_pengguna_cannot_send_selesai_status_manually(): void
     {
         $surat = Surat::factory()->create();
 
-        $this->actingAs($this->kepalaBidang())
-            ->put(route('kepala-bidang.surat.update', $surat), $this->validPayload([
+        $this->actingAs($this->pengguna())
+            ->put(route('surat.update', $surat), $this->validPayload([
                 'status' => Surat::STATUS_SELESAI,
             ]))
             ->assertSessionHasErrors('status');
@@ -145,7 +312,7 @@ class SuratManagementTest extends TestCase
         $this->assertSame(Surat::STATUS_BELUM_DITANGANI, $surat->fresh()->status);
     }
 
-    public function test_kepala_bidang_can_edit_administrative_data_without_changing_status(): void
+    public function test_pengguna_can_edit_administrative_data_without_changing_status(): void
     {
         $pegawai = $this->pegawai();
         $surat = Surat::factory()->create([
@@ -153,61 +320,57 @@ class SuratManagementTest extends TestCase
             'status' => Surat::STATUS_SEDANG_DIPROSES,
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->put(route('kepala-bidang.surat.update', $surat), $this->validPayload([
+        $this->actingAs($this->pengguna())
+            ->put(route('surat.update', $surat), $this->validPayload([
                 'nomor_surat' => '456/EDIT/2026',
-                'perihal' => 'Perihal yang diperbarui',
-                'pegawai_id' => $pegawai->id,
             ]))
-            ->assertRedirect(route('kepala-bidang.surat.show', $surat));
+            ->assertRedirect(route('surat.show', $surat));
 
         $surat->refresh();
         $this->assertSame('456/EDIT/2026', $surat->nomor_surat);
         $this->assertSame(Surat::STATUS_SEDANG_DIPROSES, $surat->status);
     }
 
-    public function test_assigning_a_pegawai_fills_assignment_time_without_changing_status(): void
+    public function test_pengguna_cannot_assign_an_employee_through_update_request(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
         $surat = Surat::factory()->create();
-        $this->travelTo(now()->startOfSecond());
 
-        $this->actingAs($this->kepalaBidang())
-            ->put(route('kepala-bidang.surat.update', $surat), $this->validPayload([
+        $this->actingAs($this->pengguna())
+            ->put(route('surat.update', $surat), $this->validPayload([
                 'pegawai_id' => $pegawai->id,
-            ]));
+            ]))
+            ->assertSessionHasErrors('pegawai_id');
 
         $surat->refresh();
-        $this->assertSame($pegawai->id, $surat->pegawai_id);
-        $this->assertSame(Surat::STATUS_BELUM_DITANGANI, $surat->status);
-        $this->assertTrue($surat->ditugaskan_pada->equalTo(now()));
-        $this->assertNull($surat->mulai_diproses_pada);
-        $this->assertNull($surat->selesai_pada);
+        $this->assertNull($surat->pegawai_id);
+        $this->assertNull($surat->ditugaskan_pada);
     }
 
-    public function test_reassigning_a_pegawai_updates_assignment_time_without_changing_status(): void
+    public function test_pengguna_cannot_reassign_an_employee_through_update_request(): void
     {
         $pegawaiPertama = $this->pegawai();
         $pegawaiKedua = $this->pegawai();
+        $waktuPengambilan = now()->subDay()->startOfSecond();
         $surat = Surat::factory()->create([
             'pegawai_id' => $pegawaiPertama->id,
             'status' => Surat::STATUS_SEDANG_DIPROSES,
-            'ditugaskan_pada' => now()->subDay(),
+            'ditugaskan_pada' => $waktuPengambilan,
         ]);
-        $this->travelTo(now()->startOfSecond());
 
-        $this->actingAs($this->kepalaBidang())
-            ->put(route('kepala-bidang.surat.update', $surat), $this->validPayload([
+        $this->actingAs($this->pengguna())
+            ->put(route('surat.update', $surat), $this->validPayload([
                 'pegawai_id' => $pegawaiKedua->id,
-            ]));
+            ]))
+            ->assertSessionHasErrors('pegawai_id');
 
         $surat->refresh();
-        $this->assertSame($pegawaiKedua->id, $surat->pegawai_id);
+        $this->assertSame($pegawaiPertama->id, $surat->pegawai_id);
         $this->assertSame(Surat::STATUS_SEDANG_DIPROSES, $surat->status);
-        $this->assertTrue($surat->ditugaskan_pada->equalTo(now()));
+        $this->assertTrue($surat->ditugaskan_pada->equalTo($waktuPengambilan));
     }
 
-    public function test_assignment_can_be_removed_only_while_status_is_belum_ditangani(): void
+    public function test_pengguna_cannot_remove_an_employee_through_update_request(): void
     {
         $pegawai = $this->pegawai();
         $surat = Surat::factory()->create([
@@ -215,46 +378,15 @@ class SuratManagementTest extends TestCase
             'ditugaskan_pada' => now()->subHour(),
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->put(route('kepala-bidang.surat.update', $surat), $this->validPayload())
-            ->assertRedirect();
-
-        $surat->refresh();
-        $this->assertNull($surat->pegawai_id);
-        $this->assertNull($surat->ditugaskan_pada);
-    }
-
-    public function test_assignment_cannot_be_removed_from_a_processed_or_completed_surat(): void
-    {
-        $kabid = $this->kepalaBidang();
-
-        foreach ([Surat::STATUS_SEDANG_DIPROSES, Surat::STATUS_SELESAI] as $status) {
-            $pegawai = $this->pegawai();
-            $surat = Surat::factory()->create([
-                'pegawai_id' => $pegawai->id,
-                'status' => $status,
-                'ditugaskan_pada' => now()->subHour(),
-            ]);
-
-            $this->actingAs($kabid)
-                ->put(route('kepala-bidang.surat.update', $surat), $this->validPayload())
-                ->assertSessionHasErrors([
-                    'pegawai_id' => 'Penugasan tidak dapat dihapus karena surat sedang diproses atau sudah selesai.',
-                ]);
-
-            $this->assertSame($pegawai->id, $surat->fresh()->pegawai_id);
-        }
-    }
-
-    public function test_kepala_bidang_cannot_assign_a_kepala_bidang_as_pegawai(): void
-    {
-        $kabid = $this->kepalaBidang();
-
-        $this->actingAs($kabid)
-            ->post(route('kepala-bidang.surat.store'), $this->validPayload([
-                'pegawai_id' => $kabid->id,
+        $this->actingAs($this->pengguna())
+            ->put(route('surat.update', $surat), $this->validPayload([
+                'pegawai_id' => null,
             ]))
             ->assertSessionHasErrors('pegawai_id');
+
+        $surat->refresh();
+        $this->assertSame($pegawai->id, $surat->pegawai_id);
+        $this->assertNotNull($surat->ditugaskan_pada);
     }
 
     public function test_pegawai_sees_only_their_own_letters(): void
@@ -270,14 +402,14 @@ class SuratManagementTest extends TestCase
         ]);
 
         $this->actingAs($revina)
-            ->get(route('pegawai.surat-saya.index'))
+            ->get(route('surat-saya.index'))
             ->assertOk()
             ->assertSee($milikRevina->nomor_surat)
             ->assertDontSee('MILIK-ORANG-LAIN')
             ->assertSee('Surat Saya');
 
         $this->actingAs($revina)
-            ->get(route('pegawai.surat-saya.show', $milikRevina))
+            ->get(route('surat-saya.show', $milikRevina))
             ->assertOk()
             ->assertSee('Mulai Proses')
             ->assertDontSee('Edit Surat');
@@ -291,11 +423,11 @@ class SuratManagementTest extends TestCase
         ]);
 
         $this->actingAs($revina)
-            ->get(route('pegawai.surat-saya.show', $suratPegawaiLain))
+            ->get(route('surat-saya.show', $suratPegawaiLain))
             ->assertForbidden();
 
         $this->actingAs($revina)
-            ->patch(route('pegawai.surat-saya.update-status', $suratPegawaiLain), [
+            ->patch(route('surat-saya.update-status', $suratPegawaiLain), [
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
             ])
             ->assertForbidden();
@@ -313,11 +445,11 @@ class SuratManagementTest extends TestCase
         $this->travelTo(now()->startOfSecond());
 
         $this->actingAs($pegawai)
-            ->patch(route('pegawai.surat-saya.update-status', $surat), [
+            ->patch(route('surat-saya.update-status', $surat), [
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
                 'nomor_surat' => 'TIDAK-BOLEH-BERUBAH',
             ])
-            ->assertRedirect(route('pegawai.surat-saya.show', $surat));
+            ->assertRedirect(route('surat-saya.show', $surat));
 
         $surat->refresh();
         $this->assertSame(Surat::STATUS_SEDANG_DIPROSES, $surat->status);
@@ -338,7 +470,7 @@ class SuratManagementTest extends TestCase
         $this->travelTo(now()->startOfSecond());
 
         $this->actingAs($pegawai)
-            ->patch(route('pegawai.surat-saya.update-status', $surat), [
+            ->patch(route('surat-saya.update-status', $surat), [
                 'status' => Surat::STATUS_SELESAI,
             ]);
 
@@ -358,24 +490,24 @@ class SuratManagementTest extends TestCase
             'selesai_pada' => now()->subHour(),
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.surat.show', $surat))
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.show', $surat))
             ->assertOk()
             ->assertSee('Mulai Diproses')
             ->assertSee('Belum Tercatat');
 
         $this->actingAs($pegawai)
-            ->get(route('pegawai.surat-saya.show', $surat))
+            ->get(route('surat-saya.show', $surat))
             ->assertOk()
             ->assertSee('Belum Tercatat');
     }
 
-    public function test_kepala_bidang_cannot_manipulate_process_timestamps(): void
+    public function test_pengguna_cannot_manipulate_process_timestamps(): void
     {
         $surat = Surat::factory()->create();
 
-        $this->actingAs($this->kepalaBidang())
-            ->put(route('kepala-bidang.surat.update', $surat), $this->validPayload([
+        $this->actingAs($this->pengguna())
+            ->put(route('surat.update', $surat), $this->validPayload([
                 'mulai_diproses_pada' => '2026-09-03 18:00:00',
             ]))
             ->assertSessionHasErrors('mulai_diproses_pada');
@@ -389,7 +521,7 @@ class SuratManagementTest extends TestCase
         $surat = Surat::factory()->create(['pegawai_id' => $pegawai->id]);
 
         $this->actingAs($pegawai)
-            ->patch(route('pegawai.surat-saya.update-status', $surat), [
+            ->patch(route('surat-saya.update-status', $surat), [
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
                 'mulai_diproses_pada' => '2026-01-01 00:00:00',
                 'selesai_pada' => '2026-01-01 00:00:00',
@@ -408,7 +540,7 @@ class SuratManagementTest extends TestCase
         $surat = Surat::factory()->create(['pegawai_id' => $pegawai->id]);
 
         $this->actingAs($pegawai)
-            ->patch(route('pegawai.surat-saya.update-status', $surat), [
+            ->patch(route('surat-saya.update-status', $surat), [
                 'status' => Surat::STATUS_SELESAI,
             ])
             ->assertSessionHasErrors('status');
@@ -426,7 +558,7 @@ class SuratManagementTest extends TestCase
         ]);
 
         $this->actingAs($pegawai)
-            ->patch(route('pegawai.surat-saya.update-status', $surat), [
+            ->patch(route('surat-saya.update-status', $surat), [
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
             ])
             ->assertSessionHasErrors('status');
@@ -434,25 +566,25 @@ class SuratManagementTest extends TestCase
         $this->assertSame(Surat::STATUS_SELESAI, $surat->fresh()->status);
     }
 
-    public function test_kepala_bidang_cannot_use_pegawai_status_endpoint(): void
+    public function test_user_cannot_update_status_of_another_users_surat(): void
     {
         $surat = Surat::factory()->create(['pegawai_id' => $this->pegawai()->id]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->patch(route('pegawai.surat-saya.update-status', $surat), [
+        $this->actingAs($this->pengguna())
+            ->patch(route('surat-saya.update-status', $surat), [
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
             ])
             ->assertForbidden();
     }
 
-    public function test_dashboard_kepala_bidang_uses_actual_status_counts(): void
+    public function test_dashboard_pengguna_uses_actual_status_counts(): void
     {
         Surat::factory()->count(2)->create(['status' => Surat::STATUS_BELUM_DITANGANI]);
         Surat::factory()->count(3)->create(['status' => Surat::STATUS_SEDANG_DIPROSES]);
         Surat::factory()->create(['status' => Surat::STATUS_SELESAI]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('dashboard.kepala-bidang'))
+        $this->actingAs($this->pengguna())
+            ->get(route('dashboard'))
             ->assertOk()
             ->assertViewHas('ringkasan', [
                 'total' => 6,
@@ -462,7 +594,33 @@ class SuratManagementTest extends TestCase
             ]);
     }
 
-    public function test_dashboard_activity_uses_official_activity_records_sorted_newest_first(): void
+    public function test_dashboard_displays_the_recorded_time_below_tanggal_masuk(): void
+    {
+        $pegawai = $this->pegawai();
+        Surat::factory()->create([
+            'nomor_surat' => 'JAM-MASUK/2026',
+            'tanggal_masuk' => '2026-09-23',
+            'pegawai_id' => $pegawai->id,
+            'created_at' => '2026-09-23 08:45:00',
+            'updated_at' => '2026-09-23 08:45:00',
+        ]);
+
+        $this->actingAs($this->pengguna())
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('23 Sep 2026')
+            ->assertSee('08:45 WIB')
+            ->assertSee('class="table-date-time"', false);
+
+        $this->actingAs($pegawai)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('23 Sep 2026')
+            ->assertSee('08:45 WIB')
+            ->assertSee('class="table-date-time"', false);
+    }
+
+    public function test_dashboard_does_not_show_recent_activity_section(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
         $surat = Surat::factory()->create([
@@ -476,8 +634,8 @@ class SuratManagementTest extends TestCase
         $surat->aktivitas()->createMany([
             [
                 'user_id' => $pegawai->id,
-                'tipe' => AktivitasSurat::TIPE_PEGAWAI_DITUGASKAN,
-                'deskripsi' => "Surat {$surat->nomor_surat} ditugaskan kepada Revina",
+                'tipe' => AktivitasSurat::TIPE_PENANGAN_MULAI,
+                'deskripsi' => "Catatan lama untuk surat {$surat->nomor_surat}",
                 'created_at' => now()->subMinutes(30),
                 'updated_at' => now()->subMinutes(30),
             ],
@@ -497,18 +655,15 @@ class SuratManagementTest extends TestCase
             ],
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('dashboard.kepala-bidang'))
+        $this->actingAs($this->pengguna())
+            ->get(route('dashboard'))
             ->assertOk()
-            ->assertSeeInOrder([
-                "Revina menyelesaikan surat {$surat->nomor_surat}",
-                "Revina mulai memproses surat {$surat->nomor_surat}",
-                "Surat {$surat->nomor_surat} ditugaskan kepada Revina",
-            ])
-            ->assertDontSee('Belum ada aktivitas');
+            ->assertDontSee('Aktivitas Terbaru')
+            ->assertDontSee("Revina menyelesaikan surat {$surat->nomor_surat}")
+            ->assertDontSee("Revina mulai memproses surat {$surat->nomor_surat}");
     }
 
-    public function test_timestamps_without_official_records_do_not_create_dashboard_activities(): void
+    public function test_dashboard_does_not_receive_activity_collection(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
         Surat::factory()->create([
@@ -516,15 +671,15 @@ class SuratManagementTest extends TestCase
             'pegawai_id' => $pegawai->id,
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('dashboard.kepala-bidang'))
+        $response = $this->actingAs($this->pengguna())
+            ->get(route('dashboard'))
             ->assertOk()
-            ->assertViewHas('aktivitasTerbaru', fn ($aktivitas): bool => $aktivitas->isEmpty())
-            ->assertSee('Belum ada aktivitas')
             ->assertDontSee('Revina mulai memproses surat TANPA-AKTIVITAS');
+
+        $this->assertArrayNotHasKey('aktivitasTerbaru', $response->original->getData());
     }
 
-    public function test_dashboard_activity_is_limited_to_six_official_records(): void
+    public function test_dashboard_ignores_activity_records(): void
     {
         $pegawai = $this->pegawai();
         $surat = Surat::factory()->create([
@@ -545,12 +700,14 @@ class SuratManagementTest extends TestCase
             ]);
         }
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('dashboard.kepala-bidang'))
-            ->assertViewHas('aktivitasTerbaru', fn ($aktivitas): bool => $aktivitas->count() === 6);
+        $this->actingAs($this->pengguna())
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('Aktivitas resmi 1')
+            ->assertDontSee('Aktivitas Terbaru');
     }
 
-    public function test_dashboard_pegawai_counts_and_lists_only_their_own_letters(): void
+    public function test_single_dashboard_shows_global_counts_and_latest_letters(): void
     {
         $revina = $this->pegawai(['name' => 'Revina']);
         Surat::factory()->count(2)->create([
@@ -568,19 +725,19 @@ class SuratManagementTest extends TestCase
         ]);
 
         $this->actingAs($revina)
-            ->get(route('dashboard.pegawai'))
+            ->get(route('dashboard'))
             ->assertOk()
             ->assertViewHas('ringkasan', [
-                'ditugaskan' => 3,
+                'total' => 4,
                 'diproses' => 2,
                 'selesai' => 1,
+                'belum_ditangani' => 1,
             ])
             ->assertSee('SELESAI-REVINA')
-            ->assertDontSee('BUKAN-MILIK-REVINA')
-            ->assertSee('Surat Saya');
+            ->assertSee('BUKAN-MILIK-REVINA');
     }
 
-    public function test_monitoring_pegawai_still_uses_actual_counts(): void
+    public function test_dashboard_does_not_show_monitoring_pegawai_section(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
         Surat::factory()->count(2)->create([
@@ -596,29 +753,25 @@ class SuratManagementTest extends TestCase
             'status' => Surat::STATUS_BELUM_DITANGANI,
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('dashboard.kepala-bidang'))
-            ->assertViewHas('pegawai', function ($pegawaiCollection): bool {
-                $revina = $pegawaiCollection->firstWhere('name', 'Revina');
+        $response = $this->actingAs($this->pengguna())
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('Monitoring Pegawai');
 
-                return $revina !== null
-                    && $revina->sedang_diproses_count === 2
-                    && $revina->selesai_count === 3
-                    && $revina->total_ditangani_count === 6;
-            });
+        $this->assertArrayNotHasKey('pegawai', $response->original->getData());
     }
 
-    public function test_monitoring_detail_link_opens_employee_monitoring_detail(): void
+    public function test_dashboard_does_not_link_to_employee_monitoring_detail(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('dashboard.kepala-bidang'))
+        $this->actingAs($this->pengguna())
+            ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee(route('kepala-bidang.monitoring-pegawai.show', $pegawai), false);
+            ->assertDontSee(route('monitoring-pegawai.show', $pegawai), false);
     }
 
-    public function test_employee_filter_only_displays_letters_for_the_selected_employee(): void
+    public function test_handler_filter_is_hidden_and_handler_query_is_ignored(): void
     {
         $revina = $this->pegawai(['name' => 'Revina']);
         $pegawaiLain = $this->pegawai();
@@ -631,53 +784,87 @@ class SuratManagementTest extends TestCase
             'pegawai_id' => $pegawaiLain->id,
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.surat.index', ['pegawai' => $revina->id]))
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.index', ['penangan' => $revina->id]))
             ->assertOk()
             ->assertSee('SURAT-REVINA')
-            ->assertDontSee('SURAT-PEGAWAI-LAIN');
+            ->assertSee('SURAT-PEGAWAI-LAIN')
+            ->assertDontSee('name="penangan"', false)
+            ->assertDontSee('Semua Penangan');
+    }
+
+    public function test_handler_name_is_hidden_from_lists_and_only_shown_on_letter_detail(): void
+    {
+        $penangan = $this->pegawai(['name' => 'PEGAWAI PENANGAN RAHASIA']);
+        $surat = Surat::factory()->create([
+            'nomor_surat' => 'DETAIL-PENANGAN/2026',
+            'pegawai_id' => $penangan->id,
+            'status' => Surat::STATUS_SELESAI,
+            'tanggal_masuk' => now()->toDateString(),
+            'selesai_pada' => now(),
+        ]);
+        $pengguna = $this->pengguna(['name' => 'Pengguna Pemeriksa']);
+
+        $this->actingAs($pengguna)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('PEGAWAI PENANGAN RAHASIA');
+
+        $this->actingAs($pengguna)
+            ->get(route('surat.index'))
+            ->assertOk()
+            ->assertDontSee('PEGAWAI PENANGAN RAHASIA');
+
+        $this->actingAs($pengguna)
+            ->get(route('laporan.index', ['tahun' => now()->year]))
+            ->assertOk()
+            ->assertDontSee('PEGAWAI PENANGAN RAHASIA');
+
+        $this->actingAs($pengguna)
+            ->get(route('surat.show', $surat))
+            ->assertOk()
+            ->assertSee('Pegawai yang Menangani')
+            ->assertSee('PEGAWAI PENANGAN RAHASIA');
     }
 
     public function test_search_form_explains_enter_submission_and_reset_clears_query_parameters(): void
     {
-        $url = route('kepala-bidang.surat.index', [
+        $url = route('surat.index', [
             'search' => '003',
             'status' => Surat::STATUS_SELESAI,
-            'pegawai' => 'belum_ditugaskan',
         ]);
 
-        $this->actingAs($this->kepalaBidang())
+        $this->actingAs($this->pengguna())
             ->get($url)
             ->assertOk()
             ->assertSee('method="GET"', false)
             ->assertSee('enterkeyhint="search"', false)
-            ->assertSee('Cari nomor surat, perihal, atau pemohon')
+            ->assertSee('Cari nomor surat, pemohon, atau keterangan')
             ->assertSee('Ketik kata kunci, lalu tekan Enter atau klik Terapkan.')
-            ->assertSee('href="'.route('kepala-bidang.surat.index').'"', false);
+            ->assertSee('href="'.route('surat.index').'"', false);
     }
 
     public function test_search_filters_and_pagination_still_work(): void
     {
         $revina = $this->pegawai();
         Surat::factory()->count(11)->create([
-            'perihal' => 'Permohonan khusus',
+            'pemohon_pengirim' => 'Pemohon khusus',
             'pegawai_id' => $revina->id,
             'status' => Surat::STATUS_SEDANG_DIPROSES,
         ]);
         Surat::factory()->create(['nomor_surat' => 'TIDAK-COCOK']);
 
-        $response = $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.surat.index', [
-                'search' => 'Permohonan khusus',
+        $response = $this->actingAs($this->pengguna())
+            ->get(route('surat.index', [
+                'search' => 'Pemohon khusus',
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
-                'pegawai' => $revina->id,
             ]))
             ->assertOk()
             ->assertDontSee('TIDAK-COCOK')
             ->assertViewHas('surats', fn ($surats): bool => $surats->count() === 10 && $surats->total() === 11);
 
         parse_str((string) parse_url($response->viewData('surats')->nextPageUrl(), PHP_URL_QUERY), $query);
-        $this->assertSame('Permohonan khusus', $query['search']);
+        $this->assertSame('Pemohon khusus', $query['search']);
         $this->assertSame(Surat::STATUS_SEDANG_DIPROSES, $query['status']);
     }
 
@@ -687,17 +874,15 @@ class SuratManagementTest extends TestCase
         $this->assertSame('Asia/Jakarta', now()->timezoneName);
     }
 
-    private function kepalaBidang(array $attributes = []): User
+    private function pengguna(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role' => User::ROLE_KEPALA_BIDANG,
         ], $attributes));
     }
 
     private function pegawai(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role' => User::ROLE_PEGAWAI,
         ], $attributes));
     }
 
@@ -709,9 +894,10 @@ class SuratManagementTest extends TestCase
         return array_merge([
             'nomor_surat' => '123/ABC/2026',
             'tanggal_masuk' => '2026-09-03',
-            'perihal' => 'Permohonan penetapan pajak daerah',
             'pemohon_pengirim' => 'PT XYZ',
-            'pegawai_id' => null,
+            'kategori_surat_id' => KategoriSurat::query()
+                ->where('slug', KategoriSurat::SLUG_PENGURANGAN_PBB)
+                ->value('id'),
             'keterangan' => 'Catatan pengujian.',
         ], $overrides);
     }

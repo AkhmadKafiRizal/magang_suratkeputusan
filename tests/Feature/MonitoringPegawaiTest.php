@@ -15,38 +15,38 @@ class MonitoringPegawaiTest extends TestCase
     {
         $pegawai = $this->pegawai();
 
-        $this->get(route('kepala-bidang.monitoring-pegawai.index'))
+        $this->get(route('monitoring-pegawai.index'))
             ->assertRedirect(route('login'));
-        $this->get(route('kepala-bidang.monitoring-pegawai.show', $pegawai))
+        $this->get(route('monitoring-pegawai.show', $pegawai))
             ->assertRedirect(route('login'));
     }
 
-    public function test_pegawai_is_forbidden_from_monitoring_index_and_detail(): void
+    public function test_pegawai_can_open_monitoring_index_and_detail(): void
     {
         $pegawai = $this->pegawai();
 
         $this->actingAs($pegawai)
-            ->get(route('kepala-bidang.monitoring-pegawai.index'))
-            ->assertForbidden();
+            ->get(route('monitoring-pegawai.index'))
+            ->assertOk();
         $this->actingAs($pegawai)
-            ->get(route('kepala-bidang.monitoring-pegawai.show', $pegawai))
-            ->assertForbidden();
+            ->get(route('monitoring-pegawai.show', $pegawai))
+            ->assertOk();
     }
 
-    public function test_kepala_bidang_can_open_monitoring_and_only_pegawai_are_listed(): void
+    public function test_authenticated_user_can_open_monitoring_and_all_users_are_listed(): void
     {
-        $kabid = $this->kepalaBidang(['name' => 'Kafi Kabid']);
+        $pengguna = $this->pengguna(['name' => 'Kafi']);
         $revina = $this->pegawai(['name' => 'Revina Pegawai']);
 
-        $this->actingAs($kabid)
-            ->get(route('kepala-bidang.monitoring-pegawai.index'))
+        $this->actingAs($pengguna)
+            ->get(route('monitoring-pegawai.index'))
             ->assertOk()
             ->assertSee('Monitoring Pegawai')
             ->assertSee('Revina Pegawai')
-            ->assertSee('aria-current="page"', false)
-            ->assertViewHas('pegawai', function ($pegawai) use ($revina, $kabid): bool {
-                return $pegawai->pluck('id')->all() === [$revina->id]
-                    && ! $pegawai->pluck('id')->contains($kabid->id);
+            ->assertDontSee('<span>Monitoring Pegawai</span>', false)
+            ->assertViewHas('pegawai', function ($pegawai) use ($revina, $pengguna): bool {
+                return $pegawai->pluck('id')->contains($revina->id)
+                    && $pegawai->pluck('id')->contains($pengguna->id);
             });
     }
 
@@ -70,11 +70,11 @@ class MonitoringPegawaiTest extends TestCase
             'status' => Surat::STATUS_BELUM_DITANGANI,
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.monitoring-pegawai.index'))
+        $this->actingAs($this->pengguna())
+            ->get(route('monitoring-pegawai.index'))
             ->assertOk()
             ->assertViewHas('ringkasan', [
-                'total_pegawai' => 1,
+                'total_pegawai' => 2,
                 'belum_ditangani' => 2,
                 'sedang_diproses' => 3,
                 'selesai' => 4,
@@ -90,8 +90,8 @@ class MonitoringPegawaiTest extends TestCase
             'status' => Surat::STATUS_SELESAI,
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.monitoring-pegawai.index'))
+        $this->actingAs($this->pengguna())
+            ->get(route('monitoring-pegawai.index'))
             ->assertViewHas('pegawai', function ($pegawaiCollection): bool {
                 $revina = $pegawaiCollection->firstWhere('name', 'Revina');
 
@@ -114,8 +114,8 @@ class MonitoringPegawaiTest extends TestCase
         $this->buatSuratAktif($sedang, 3);
         $this->buatSuratAktif($tinggi, 6);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.monitoring-pegawai.index'))
+        $this->actingAs($this->pengguna())
+            ->get(route('monitoring-pegawai.index'))
             ->assertViewHas('pegawai', function ($pegawai): bool {
                 return $pegawai->firstWhere('name', 'Ringan')->beban_kerja_label === 'Ringan'
                     && $pegawai->firstWhere('name', 'Sedang')->beban_kerja_label === 'Sedang'
@@ -133,22 +133,25 @@ class MonitoringPegawaiTest extends TestCase
         $beta = $this->pegawai(['name' => 'Beta']);
         $this->buatSuratAktif($beta, 3);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.monitoring-pegawai.index'))
+        $viewer = $this->pengguna(['name' => 'Aardvark']);
+
+        $this->actingAs($viewer)
+            ->get(route('monitoring-pegawai.index'))
             ->assertViewHas('pegawai', fn ($pegawai): bool => $pegawai->pluck('id')->all() === [
+                $viewer->id,
                 $alfa->id,
                 $zeta->id,
                 $beta->id,
             ]);
     }
 
-    public function test_detail_rejects_a_user_who_is_not_a_pegawai(): void
+    public function test_detail_accepts_every_authenticated_user(): void
     {
-        $kabid = $this->kepalaBidang();
+        $pengguna = $this->pengguna();
 
-        $this->actingAs($kabid)
-            ->get(route('kepala-bidang.monitoring-pegawai.show', $kabid))
-            ->assertNotFound();
+        $this->actingAs($pengguna)
+            ->get(route('monitoring-pegawai.show', $pengguna))
+            ->assertOk();
     }
 
     public function test_detail_only_contains_the_selected_employees_letters_and_existing_detail_links(): void
@@ -165,15 +168,15 @@ class MonitoringPegawaiTest extends TestCase
             'pegawai_id' => $pegawaiLain->id,
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.monitoring-pegawai.show', $revina))
+        $this->actingAs($this->pengguna())
+            ->get(route('monitoring-pegawai.show', $revina))
             ->assertOk()
             ->assertSee('SURAT-REVINA')
             ->assertDontSee('SURAT-PEGAWAI-LAIN')
             ->assertSee('03 Sep 2026, 19:29 WIB')
             ->assertSee('Belum Diproses')
             ->assertSee('Belum Selesai')
-            ->assertSee(route('kepala-bidang.surat.show', $suratRevina), false)
+            ->assertSee(route('surat.show', $suratRevina), false)
             ->assertViewHas('surats', fn ($surats): bool => $surats->total() === 1
                 && $surats->first()->pegawai_id === $revina->id);
     }
@@ -186,8 +189,8 @@ class MonitoringPegawaiTest extends TestCase
         $belumLama = $this->surat($pegawai, Surat::STATUS_BELUM_DITANGANI, 'BELUM-LAMA', '2026-08-01');
         $belumBaru = $this->surat($pegawai, Surat::STATUS_BELUM_DITANGANI, 'BELUM-BARU', '2026-09-02');
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.monitoring-pegawai.show', $pegawai))
+        $this->actingAs($this->pengguna())
+            ->get(route('monitoring-pegawai.show', $pegawai))
             ->assertViewHas('surats', fn ($surats): bool => $surats->pluck('id')->all() === [
                 $belumBaru->id,
                 $belumLama->id,
@@ -196,33 +199,33 @@ class MonitoringPegawaiTest extends TestCase
             ]);
     }
 
-    public function test_status_filter_and_search_by_number_or_subject_work(): void
+    public function test_status_filter_and_search_by_number_or_applicant_work(): void
     {
         $pegawai = $this->pegawai();
         $nomor = $this->surat($pegawai, Surat::STATUS_BELUM_DITANGANI, 'NOMOR-KHUSUS', '2026-09-01');
-        $perihal = Surat::factory()->create([
+        $pemohon = Surat::factory()->create([
             'nomor_surat' => 'LAINNYA',
-            'perihal' => 'Permohonan pajak hotel',
+            'pemohon_pengirim' => 'Pemohon pajak hotel',
             'pegawai_id' => $pegawai->id,
             'status' => Surat::STATUS_SEDANG_DIPROSES,
         ]);
         Surat::factory()->create([
-            'nomor_surat' => 'PERIHAL-SAMA-STATUS-LAIN',
-            'perihal' => 'Permohonan pajak hotel',
+            'nomor_surat' => 'PEMOHON-SAMA-STATUS-LAIN',
+            'pemohon_pengirim' => 'Pemohon pajak hotel',
             'pegawai_id' => $pegawai->id,
             'status' => Surat::STATUS_SELESAI,
         ]);
         $this->surat($pegawai, Surat::STATUS_SELESAI, 'TIDAK-COCOK', '2026-09-02');
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.monitoring-pegawai.show', [
+        $this->actingAs($this->pengguna())
+            ->get(route('monitoring-pegawai.show', [
                 'pegawai' => $pegawai,
                 'q' => 'NOMOR-KHUSUS',
             ]))
             ->assertViewHas('surats', fn ($surats): bool => $surats->pluck('id')->all() === [$nomor->id]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.monitoring-pegawai.show', [
+        $this->actingAs($this->pengguna())
+            ->get(route('monitoring-pegawai.show', [
                 'pegawai' => $pegawai,
                 'q' => 'pajak hotel',
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
@@ -231,21 +234,22 @@ class MonitoringPegawaiTest extends TestCase
             ->assertSee('method="GET"', false)
             ->assertSee('enterkeyhint="search"', false)
             ->assertSee('Ketik kata kunci, lalu tekan Enter atau klik Terapkan.')
-            ->assertViewHas('surats', fn ($surats): bool => $surats->pluck('id')->all() === [$perihal->id]);
+            ->assertViewHas('surats', fn ($surats): bool => $surats->pluck('id')->all() === [$pemohon->id]);
     }
 
     public function test_detail_has_helpful_empty_states_with_and_without_filters(): void
     {
         $pegawai = $this->pegawai();
-        $kabid = $this->kepalaBidang();
+        $pengguna = $this->pengguna();
 
-        $this->actingAs($kabid)
-            ->get(route('kepala-bidang.monitoring-pegawai.show', $pegawai))
+        $this->actingAs($pengguna)
+            ->get(route('monitoring-pegawai.show', $pegawai))
             ->assertOk()
-            ->assertSee('Belum ada surat yang ditugaskan kepada pegawai ini.');
+            ->assertSee('Pegawai ini belum mengambil surat.')
+            ->assertDontSee('Ditugaskan');
 
-        $this->actingAs($kabid)
-            ->get(route('kepala-bidang.monitoring-pegawai.show', [
+        $this->actingAs($pengguna)
+            ->get(route('monitoring-pegawai.show', [
                 'pegawai' => $pegawai,
                 'q' => 'tidak-ada',
             ]))
@@ -257,48 +261,47 @@ class MonitoringPegawaiTest extends TestCase
     {
         $pegawai = $this->pegawai();
         Surat::factory()->count(11)->create([
-            'perihal' => 'Permohonan khusus',
+            'pemohon_pengirim' => 'Pemohon khusus',
             'pegawai_id' => $pegawai->id,
             'status' => Surat::STATUS_SEDANG_DIPROSES,
         ]);
 
-        $response = $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.monitoring-pegawai.show', [
+        $response = $this->actingAs($this->pengguna())
+            ->get(route('monitoring-pegawai.show', [
                 'pegawai' => $pegawai,
-                'q' => 'Permohonan khusus',
+                'q' => 'Pemohon khusus',
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
             ]))
             ->assertOk()
             ->assertViewHas('surats', fn ($surats): bool => $surats->count() === 10 && $surats->total() === 11);
 
         parse_str((string) parse_url($response->viewData('surats')->nextPageUrl(), PHP_URL_QUERY), $query);
-        $this->assertSame('Permohonan khusus', $query['q']);
+        $this->assertSame('Pemohon khusus', $query['q']);
         $this->assertSame(Surat::STATUS_SEDANG_DIPROSES, $query['status']);
     }
 
-    public function test_dashboard_and_sidebar_link_to_the_new_monitoring_pages(): void
+    public function test_dashboard_does_not_show_monitoring_pegawai(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
-        $kabid = $this->kepalaBidang();
+        $pengguna = $this->pengguna();
 
-        $this->actingAs($kabid)
-            ->get(route('dashboard.kepala-bidang'))
+        $this->actingAs($pengguna)
+            ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee(route('kepala-bidang.monitoring-pegawai.index'), false)
-            ->assertSee(route('kepala-bidang.monitoring-pegawai.show', $pegawai), false);
+            ->assertDontSee('Monitoring Pegawai')
+            ->assertDontSee(route('monitoring-pegawai.index'), false)
+            ->assertDontSee(route('monitoring-pegawai.show', $pegawai), false);
     }
 
-    private function kepalaBidang(array $attributes = []): User
+    private function pengguna(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role' => User::ROLE_KEPALA_BIDANG,
         ], $attributes));
     }
 
     private function pegawai(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role' => User::ROLE_PEGAWAI,
         ], $attributes));
     }
 

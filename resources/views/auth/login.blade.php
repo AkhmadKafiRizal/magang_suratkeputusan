@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#174ea6">
-    <title>Masuk — Sistem Arsip Surat</title>
+    <title>Masuk | {{ config('branding.short_name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         :root {
@@ -41,9 +41,7 @@
             min-height: 100vh;
             display: grid;
             grid-template-columns: minmax(440px, .92fr) minmax(520px, 1.08fr);
-            background:
-                linear-gradient(90deg, rgba(7, 34, 68, .68) 0%, rgba(9, 45, 87, .44) 48%, rgba(6, 29, 58, .62) 100%),
-                url("{{ asset('images/gedung-login.webp') }}") center / cover no-repeat fixed;
+            background: url("{{ asset('images/gedung-login.webp') }}") center / cover no-repeat fixed;
             isolation: isolate;
         }
 
@@ -65,10 +63,10 @@
         }
 
         .twinkle-star {
-            width: var(--star-size, 2px);
-            height: var(--star-size, 2px);
+            width: var(--star-size, 6px);
+            height: var(--star-size, 6px);
             opacity: .2;
-            box-shadow: 0 0 7px rgba(255, 255, 255, .86);
+            box-shadow: 0 0 21px rgba(255, 255, 255, .86);
             animation: star-twinkle var(--twinkle-duration, 2.8s) ease-in-out infinite;
             animation-delay: var(--twinkle-delay, 0s);
         }
@@ -76,10 +74,10 @@
         .shooting-star {
             top: var(--star-top, -8%);
             left: var(--star-left, 110%);
-            width: 3px;
-            height: 3px;
+            width: 8px;
+            height: 8px;
             opacity: 0;
-            box-shadow: 0 0 9px #fff, 0 0 18px rgba(191, 222, 255, .92), 0 0 28px rgba(111, 179, 255, .66);
+            box-shadow: 0 0 27px #fff, 0 0 54px rgba(191, 222, 255, .92), 0 0 84px rgba(111, 179, 255, .66);
             animation: shooting-star-fall var(--fall-duration, 4s) linear infinite;
             animation-delay: var(--fall-delay, 0s);
         }
@@ -89,8 +87,8 @@
             position: absolute;
             top: 50%;
             left: 100%;
-            width: var(--trail-length, 52px);
-            height: 1px;
+            width: var(--trail-length, 156px);
+            height: 3px;
             background: linear-gradient(90deg, rgba(255, 255, 255, .96), transparent);
             transform: translateY(-50%);
             transform-origin: left center;
@@ -162,9 +160,10 @@
             object-fit: contain;
         }
 
-        .brand-text { display: grid; gap: 2px; }
-        .brand-title { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
-        .brand-subtitle { color: var(--muted); font-size: 12px; }
+        .brand-text { display: grid; min-width: 0; gap: 2px; }
+        .brand-title { font-size: 19px; font-weight: 800; letter-spacing: .035em; }
+        .brand-subtitle { color: #405b79; font-size: 11px; font-weight: 700; line-height: 1.35; }
+        .brand-agency { color: var(--muted); font-size: 10px; line-height: 1.35; }
 
         .form-wrap {
             position: relative;
@@ -176,7 +175,12 @@
             border-radius: 22px;
             background: rgba(248, 251, 255, .96);
             box-shadow: 0 22px 55px rgba(24, 66, 116, .11), 0 3px 10px rgba(24, 66, 116, .05);
+            animation: auth-enter .34s ease-out both;
+            transition: opacity .2s ease, transform .2s ease;
         }
+
+        .form-wrap.is-leaving { opacity: 0; transform: translateY(10px); }
+        @keyframes auth-enter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 
         .welcome-icon {
             display: grid;
@@ -392,7 +396,7 @@
             position: absolute;
             z-index: 1;
             inset: 0;
-            background: linear-gradient(180deg, transparent 32%, rgba(5, 31, 62, .54) 100%);
+            background: transparent;
         }
 
         .building {
@@ -489,6 +493,8 @@
         @media (prefers-reduced-motion: reduce) {
             .twinkle-star { animation: none; opacity: .42; }
             .shooting-star { display: none; }
+            .form-wrap { animation: none; transition: none; }
+            .form-wrap.is-leaving { opacity: 1; transform: none; }
         }
 
     </style>
@@ -499,34 +505,35 @@
         <div id="stars-container" class="sky-effects" aria-hidden="true"></div>
 
         <section class="login-panel" aria-labelledby="login-title">
-            <div class="form-wrap">
-                <a class="brand" href="{{ route('login') }}" aria-label="Sistem Arsip Surat Bapenda Kabupaten Jember">
+            <div class="form-wrap" data-auth-card>
+                <a class="brand" href="{{ route('login') }}" aria-label="{{ config('branding.short_name') }} {{ config('branding.agency') }}">
                     <span class="brand-logos" aria-hidden="true">
                         <img class="logo-pemkab" src="{{ asset('images/logo-pemkab-jember.png') }}" alt="">
                         <img class="logo-bapenda" src="{{ asset('images/logo-bapenda-jember.png') }}" alt="">
                     </span>
                     <span class="brand-text">
-                        <span class="brand-title">Sistem Arsip Surat</span>
-                        <span class="brand-subtitle">Bidang Penetapan dan Keberatan</span>
+                        <span class="brand-title">{{ config('branding.short_name') }}</span>
+                        <span class="brand-subtitle">{{ config('branding.full_name') }}</span>
+                        <span class="brand-agency">{{ config('branding.agency') }}</span>
                     </span>
                 </a>
 
                 <span class="welcome-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 10h.01M12 10h.01M16 10h.01M4 5h16v11H9l-5 4z" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </span>
-                <h1 id="login-title">Halo Kakak Comel</h1>
-                <p class="intro">Silakan masuk untuk mencatat, mengarsipkan atau melihat perkembangan surat yang sedang diproses.</p>
+                <h1 id="login-title">Halo, Selamat Datang !</h1>
+                <p class="intro">Silahkan masuk untuk melakukan update persuratan hari ini.</p>
 
                 <form method="POST" action="{{ route('login.store') }}" data-loading-form>
                     @csrf
                     <div class="field">
-                        <label for="email">Alamat email</label>
+                        <label for="username">Username atau Email</label>
                         <div class="input-shell">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16v12H4z" stroke-linejoin="round"/><path d="m4 7 8 6 8-6" stroke-linejoin="round"/></svg>
-                            <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="Contoh: nama@kantor.go.id" autocomplete="email" required autofocus @if($errors->has('email')) aria-invalid="true" aria-describedby="email-error" @endif>
+                            <input id="username" name="username" type="text" value="{{ old('username') }}" placeholder="Masukkan username atau email" autocomplete="username" required autofocus @if($errors->has('username')) aria-invalid="true" aria-describedby="username-error" @endif>
                         </div>
-                        <span class="hint">Masukkan email yang sudah didaftarkan oleh admin.</span>
-                        @error('email')<span class="error" id="email-error">{{ $message }}</span>@enderror
+                        <span class="hint">Masuk dengan username atau email terdaftar. Nama yang tampil di profil dapat berbeda dari username. Username dapat dilihat dan diubah di Pengaturan Akun setelah masuk dengan email.</span>
+                        @error('username')<span class="error" id="username-error">{{ $message }}</span>@enderror
                     </div>
 
                     <div class="field">
@@ -547,11 +554,11 @@
                             <input id="remember" name="remember" type="checkbox" value="1" @checked(old('remember'))>
                             Ingat saya di perangkat ini
                         </label>
-                        <a class="help-link" href="mailto:admin@example.com?subject=Bantuan%20masuk%20Sistem%20Arsip%20Surat">Lupa kata sandi?</a>
+                        <a class="help-link" href="{{ route('password.request') }}" data-auth-transition>Lupa kata sandi?</a>
                     </div>
 
                     <button class="submit" type="submit" data-loading-label="Memproses...">
-                        Masuk ke Sistem Arsip
+                        Masuk ke {{ config('branding.short_name') }}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M14 7l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
 
@@ -561,7 +568,7 @@
                     </p>
                 </form>
 
-                <div class="panel-foot">&copy; {{ date('Y') }} Sistem Arsip Surat &middot; Membantu pekerjaan surat-menyurat lebih tertata.</div>
+                <div class="panel-foot">&copy; {{ date('Y') }} {{ config('branding.short_name') }} &middot; {{ config('branding.agency') }}</div>
             </div>
         </section>
 
@@ -572,8 +579,8 @@
                 <span class="visual-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7.5h6l2 2H20v10H4z" stroke-linejoin="round"/><path d="M7.5 14h9M7.5 17h6" stroke-linecap="round"/></svg>
                 </span>
-                <h2>Bidang Penetapan dan Keberatan.</h2>
-                <p>Sistem ini memudahkan kepala bidang mengawasi efisiensi kerja, mulai dari status masuknya surat, rekan tim yang memproses, hingga capaian akhir pengerjaannya.</p>
+                <h2>Bidang Keberatan.</h2>
+                <p>Sistem ini memudahkan para pegawai melihat pekerjaan, mulai dari status masuknya surat, rekan tim yang memproses, hingga capaian akhir pengerjaannya.</p>
             </div>
         </aside>
     </main>
@@ -598,7 +605,7 @@
 
             for (let index = 0; index < twinkleCount; index += 1) {
                 const star = document.createElement('span');
-                const size = (Math.random() * 1.8 + 1).toFixed(2);
+                const size = (Math.random() * 5.4 + 3).toFixed(2);
 
                 star.className = 'twinkle-star';
                 star.style.left = `${Math.random() * 100}%`;
@@ -617,10 +624,22 @@
                 star.style.setProperty('--star-top', `${Math.floor(Math.random() * -50)}%`);
                 star.style.setProperty('--fall-duration', `${(Math.random() * 3 + 3.4).toFixed(2)}s`);
                 star.style.setProperty('--fall-delay', `${(Math.random() * 7).toFixed(2)}s`);
-                star.style.setProperty('--trail-length', `${Math.floor(Math.random() * 42 + 38)}px`);
+                star.style.setProperty('--trail-length', `${Math.floor(Math.random() * 42 + 38) * 3}px`);
                 starsContainer.appendChild(star);
             }
         }
+
+        document.querySelectorAll('[data-auth-transition]').forEach((link) => {
+            link.addEventListener('click', (event) => {
+                if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                const url = new URL(link.href, window.location.href);
+                if (url.origin !== window.location.origin) return;
+                event.preventDefault();
+                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { window.location.assign(url.href); return; }
+                document.querySelector('[data-auth-card]')?.classList.add('is-leaving');
+                window.setTimeout(() => window.location.assign(url.href), 180);
+            });
+        });
     </script>
 </body>
 </html>

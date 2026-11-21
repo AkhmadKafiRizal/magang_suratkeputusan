@@ -4,23 +4,24 @@ namespace App\Models;
 
 use Database\Factories\SuratFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'nomor_surat',
     'tanggal_masuk',
-    'perihal',
     'pemohon_pengirim',
-    'pegawai_id',
+    'kategori_surat_id',
     'keterangan',
 ])]
 class Surat extends Model
 {
     /** @use HasFactory<SuratFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public const STATUS_BELUM_DITANGANI = 'belum_ditangani';
 
@@ -30,7 +31,7 @@ class Surat extends Model
 
     public const STATUS_LABELS = [
         self::STATUS_BELUM_DITANGANI => 'Belum Ditangani',
-        self::STATUS_SEDANG_DIPROSES => 'Sedang Diproses',
+        self::STATUS_SEDANG_DIPROSES => 'Dalam Proses',
         self::STATUS_SELESAI => 'Selesai',
     ];
 
@@ -45,6 +46,16 @@ class Surat extends Model
     }
 
     /**
+     * Kategori / jenis surat.
+     *
+     * @return BelongsTo<KategoriSurat, $this>
+     */
+    public function kategoriSurat(): BelongsTo
+    {
+        return $this->belongsTo(KategoriSurat::class);
+    }
+
+    /**
      * Riwayat perubahan dan progres surat.
      *
      * @return HasMany<AktivitasSurat, $this>
@@ -54,20 +65,49 @@ class Surat extends Model
         return $this->hasMany(AktivitasSurat::class);
     }
 
-    /**
-     * Terapkan perubahan administratif sekaligus sinkronkan waktu penugasan.
-     *
-     * @param  array<string, mixed>  $attributes
-     */
+    public function scopeDalamKategori(Builder $query, string $filter): Builder
+    {
+        if ($filter === KategoriSurat::SLUG_LAIN_LAIN) {
+            return $query->where(function (Builder $query): void {
+                $query->whereNull('kategori_surat_id')
+                    ->orWhereDoesntHave('kategoriSurat')
+                    ->orWhereHas(
+                        'kategoriSurat',
+                        fn (Builder $query) => $query->whereNotIn('slug', KategoriSurat::SLUG_KATEGORI_UTAMA)
+                    );
+            });
+        }
+
+        if (ctype_digit($filter)) {
+            $kategori = KategoriSurat::query()->find((int) $filter);
+
+            if (! $kategori || ! in_array($kategori->slug, KategoriSurat::SLUG_KATEGORI_UTAMA, true)) {
+                return $query->dalamKategori(KategoriSurat::SLUG_LAIN_LAIN);
+            }
+
+            return $query->where('kategori_surat_id', $kategori->id);
+        }
+
+        if (! in_array($filter, KategoriSurat::SLUG_KATEGORI_UTAMA, true)) {
+            return $query->dalamKategori(KategoriSurat::SLUG_LAIN_LAIN);
+        }
+
+        return $query->whereHas(
+            'kategoriSurat',
+            fn (Builder $query) => $query->where('slug', $filter)
+        );
+    }
+
+    /** @param array<string, mixed> $attributes */
     public function applyAdministrativeChanges(array $attributes): void
     {
-        $pegawaiLama = $this->exists ? $this->pegawai_id : null;
-
-        $this->fill($attributes);
-
-        if ((string) $pegawaiLama !== (string) $this->pegawai_id) {
-            $this->ditugaskan_pada = $this->pegawai_id === null ? null : now();
-        }
+        $this->fill(collect($attributes)->only([
+            'nomor_surat',
+            'tanggal_masuk',
+            'pemohon_pengirim',
+            'kategori_surat_id',
+            'keterangan',
+        ])->all());
     }
 
     public function canAdvanceTo(string $status): bool
@@ -98,6 +138,17 @@ class Surat extends Model
     public function getStatusLabelAttribute(): string
     {
         return self::STATUS_LABELS[$this->status] ?? $this->status;
+    }
+
+    public function getKategoriLabelAttribute(): string
+    {
+        $kategori = $this->kategoriSurat;
+
+        if ($kategori && in_array($kategori->slug, KategoriSurat::SLUG_KATEGORI_UTAMA, true)) {
+            return $kategori->nama;
+        }
+
+        return 'Surat Lain-lain';
     }
 
     /**

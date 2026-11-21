@@ -33,7 +33,7 @@
             <span class="auth-feedback-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m5 12.5 4.2 4L19 6.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            <span class="auth-feedback-eyebrow">Sistem Arsip Surat</span>
+            <span class="auth-feedback-eyebrow">{{ config('branding.short_name') }}</span>
             <strong>{{ $authFeedback['title'] ?? 'Berhasil' }}</strong>
             <p>{{ $authFeedback['message'] }}</p>
             <span class="auth-feedback-progress" aria-hidden="true"></span>

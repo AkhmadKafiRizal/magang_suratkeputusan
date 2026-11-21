@@ -5,7 +5,6 @@ namespace App\Http\Requests;
 use App\Models\Surat;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class UpdateSuratStatusRequest extends FormRequest
 {
@@ -34,26 +33,6 @@ class UpdateSuratStatusRequest extends FormRequest
     }
 
     /**
-     * @return array<int, callable>
-     */
-    public function after(): array
-    {
-        return [
-            function (Validator $validator): void {
-                $surat = $this->route('surat');
-                $status = (string) $this->input('status');
-
-                if ($surat instanceof Surat && ! $surat->canAdvanceTo($status)) {
-                    $validator->errors()->add(
-                        'status',
-                        'Perubahan status tidak diizinkan. Progres surat hanya dapat diperbarui secara berurutan.'
-                    );
-                }
-            },
-        ];
-    }
-
-    /**
      * @return array<string, string>
      */
     public function messages(): array
@@ -61,7 +40,7 @@ class UpdateSuratStatusRequest extends FormRequest
         return [
             'status.required' => 'Status tujuan wajib dikirim.',
             'status.in' => 'Status tujuan tidak valid.',
-            'ditugaskan_pada.prohibited' => 'Waktu penugasan diatur otomatis oleh sistem dan tidak dapat diubah manual.',
+            'ditugaskan_pada.prohibited' => 'Waktu pengambilan surat diatur otomatis oleh sistem dan tidak dapat diubah manual.',
             'mulai_diproses_pada.prohibited' => 'Waktu mulai proses diatur otomatis oleh sistem dan tidak dapat diubah manual.',
             'selesai_pada.prohibited' => 'Waktu selesai diatur otomatis oleh sistem dan tidak dapat diubah manual.',
         ];

@@ -40,14 +40,14 @@ class RiwayatAktivitasController extends Controller
 
         $aktivitas = AktivitasSurat::query()
             ->with([
-                'actor:id,name,role',
-                'surat:id,nomor_surat,perihal',
+                'actor:id,name',
+                'surat:id,nomor_surat,pemohon_pengirim,deleted_at',
             ])
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->whereHas('surat', function ($query) use ($search): void {
                         $query->where('nomor_surat', 'like', "%{$search}%")
-                            ->orWhere('perihal', 'like', "%{$search}%");
+                            ->orWhere('pemohon_pengirim', 'like', "%{$search}%");
                     })->orWhereHas('actor', fn ($query) => $query->where('name', 'like', "%{$search}%"));
                 });
             })
@@ -65,9 +65,8 @@ class RiwayatAktivitasController extends Controller
             'aktivitas' => $aktivitas,
             'kategoriFilter' => AktivitasSurat::KATEGORI_FILTER,
             'pengguna' => User::query()
-                ->whereIn('role', [User::ROLE_KEPALA_BIDANG, User::ROLE_PEGAWAI])
                 ->orderBy('name')
-                ->get(['id', 'name', 'role']),
+                ->get(['id', 'name']),
             'suratFilter' => $suratId !== null
                 ? Surat::query()->find($suratId, ['id', 'nomor_surat'])
                 : null,

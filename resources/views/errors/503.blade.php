@@ -1,0 +1,5 @@
+@extends('errors.layout')
+@section('title', 'Pemeliharaan Sistem')
+@section('code', '503')
+@section('heading', 'SIARKA sedang dipelihara')
+@section('message', 'Layanan sementara tidak tersedia. Silakan buka kembali setelah proses pemeliharaan selesai.')

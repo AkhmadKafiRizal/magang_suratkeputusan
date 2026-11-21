@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\KategoriSurat;
 use App\Models\Surat;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,14 +14,14 @@ class InteractionFeedbackTest extends TestCase
 
     public function test_successful_login_has_personalized_feedback(): void
     {
-        $user = $this->kepalaBidang(['name' => 'Kafi', 'password' => 'password']);
+        $user = $this->pengguna(['name' => 'Kafi', 'password' => 'password']);
 
         $response = $this->post(route('login.store'), [
-            'email' => $user->email,
+            'username' => $user->username,
             'password' => 'password',
         ]);
 
-        $response->assertRedirect(route('dashboard.kepala-bidang'))
+        $response->assertRedirect(route('dashboard'))
             ->assertSessionHas('auth_feedback', [
                 'title' => 'Login Berhasil',
                 'message' => 'Selamat datang, Kafi.',
@@ -29,27 +30,28 @@ class InteractionFeedbackTest extends TestCase
         $this->followRedirects($response)
             ->assertSee('data-auth-feedback', false)
             ->assertSee('class="auth-feedback-card"', false)
+            ->assertSeeInOrder(['data-auth-feedback', '<main class="dashboard-main'], false)
             ->assertSee('Login Berhasil')
             ->assertSee('Selamat datang, Kafi.');
     }
 
-    public function test_failed_login_has_human_friendly_error_and_keeps_email(): void
+    public function test_failed_login_has_human_friendly_error_and_keeps_username(): void
     {
         $user = $this->pegawai(['password' => 'password']);
 
         $this->from(route('login'))
             ->post(route('login.store'), [
-                'email' => $user->email,
+                'username' => $user->username,
                 'password' => 'keliru',
             ])
             ->assertRedirect(route('login'))
-            ->assertSessionHasErrors(['email' => 'Email atau password tidak sesuai.'])
-            ->assertSessionHasInput('email', $user->email);
+            ->assertSessionHasErrors(['username' => 'Username/email atau kata sandi tidak sesuai.'])
+            ->assertSessionHasInput('username', $user->username);
     }
 
     public function test_logout_uses_post_and_has_success_feedback(): void
     {
-        $user = $this->kepalaBidang();
+        $user = $this->pengguna();
 
         $response = $this->actingAs($user)->post(route('logout'));
 
@@ -76,27 +78,29 @@ class InteractionFeedbackTest extends TestCase
             ->assertSee('class="toggle-password"', false)
             ->assertSee('id="stars-container"', false);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('dashboard.kepala-bidang'))
+        $this->actingAs($this->pengguna())
+            ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('data-confirmation-modal', false)
             ->assertSee('role="dialog"', false)
             ->assertSee('aria-modal="true"', false)
-            ->assertSee('data-confirm-title="Keluar dari Sistem?"', false)
+            ->assertSee('data-confirm-title="Keluar dari SIARKA?"', false)
             ->assertSee('method="POST"', false)
-            ->assertSee('data-sidebar-close', false);
+            ->assertSee('data-sidebar-close', false)
+            ->assertSee('data-page-transition', false)
+            ->assertSee(route('account.edit'), false);
     }
 
     public function test_global_toast_supports_all_feedback_types_and_escapes_messages(): void
     {
-        $this->actingAs($this->kepalaBidang())
+        $this->actingAs($this->pengguna())
             ->withSession([
                 'success' => 'Data berhasil disimpan.',
                 'error' => '<script>alert("xss")</script>',
                 'warning' => 'Periksa kembali data.',
                 'info' => 'Informasi terbaru tersedia.',
             ])
-            ->get(route('dashboard.kepala-bidang'))
+            ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('data-toast-region', false)
             ->assertSee('app-toast-success', false)
@@ -109,16 +113,20 @@ class InteractionFeedbackTest extends TestCase
 
     public function test_store_surat_has_success_feedback_and_dirty_loading_hooks(): void
     {
-        $kabid = $this->kepalaBidang();
+        $pengguna = $this->pengguna();
 
-        $this->actingAs($kabid)
-            ->get(route('kepala-bidang.surat.create'))
+        $this->actingAs($pengguna)
+            ->get(route('surat.create'))
             ->assertOk()
             ->assertSee('data-dirty-form', false)
-            ->assertSee('data-loading-label="Menyimpan..."', false);
+            ->assertSee('data-loading-label="Menyimpan..."', false)
+            ->assertSee('id="tanggal_masuk"', false)
+            ->assertSee('data-open-date-picker', false)
+            ->assertSee('id="kategori_surat_id"', false)
+            ->assertSee('data-field-click-feedback', false);
 
-        $response = $this->actingAs($kabid)
-            ->post(route('kepala-bidang.surat.store'), $this->payload());
+        $response = $this->actingAs($pengguna)
+            ->post(route('surat.store'), $this->payload());
 
         $response->assertSessionHas('success', 'Surat berhasil dicatat.');
     }
@@ -127,41 +135,29 @@ class InteractionFeedbackTest extends TestCase
     {
         $surat = Surat::factory()->create();
 
-        $this->actingAs($this->kepalaBidang())
-            ->put(route('kepala-bidang.surat.update', $surat), $this->payload([
+        $this->actingAs($this->pengguna())
+            ->put(route('surat.update', $surat), $this->payload([
                 'nomor_surat' => $surat->nomor_surat,
-                'perihal' => 'Perihal administratif diperbarui',
+                'keterangan' => 'Catatan administratif diperbarui',
             ]))
             ->assertSessionHas('success', 'Data surat berhasil diperbarui.');
     }
 
-    public function test_assignment_reassignment_and_unassignment_have_specific_feedback(): void
+    public function test_attempts_to_choose_another_handler_are_rejected_without_success_feedback(): void
     {
-        $kabid = $this->kepalaBidang();
+        $pengguna = $this->pengguna();
         $revina = $this->pegawai(['name' => 'Revina']);
-        $diah = $this->pegawai(['name' => 'Diah']);
         $surat = Surat::factory()->create();
 
-        $this->actingAs($kabid)
-            ->put(route('kepala-bidang.surat.update', $surat), $this->payloadFor($surat, [
+        $this->actingAs($pengguna)
+            ->put(route('surat.update', $surat), $this->payloadFor($surat, [
                 'pegawai_id' => $revina->id,
             ]))
-            ->assertSessionHas('success', 'Surat berhasil ditugaskan kepada Revina.');
-
-        $this->actingAs($kabid)
-            ->put(route('kepala-bidang.surat.update', $surat->fresh()), $this->payloadFor($surat->fresh(), [
-                'pegawai_id' => $diah->id,
-            ]))
-            ->assertSessionHas('success', 'Penugasan berhasil dipindahkan kepada Diah.');
-
-        $this->actingAs($kabid)
-            ->put(route('kepala-bidang.surat.update', $surat->fresh()), $this->payloadFor($surat->fresh(), [
-                'pegawai_id' => null,
-            ]))
-            ->assertSessionHas('success', 'Penugasan surat berhasil dihapus.');
+            ->assertSessionHasErrors('pegawai_id')
+            ->assertSessionMissing('success');
     }
 
-    public function test_edit_and_finish_forms_render_the_required_confirmation_hooks(): void
+    public function test_edit_form_omits_handler_selection_and_finish_form_keeps_confirmation_hooks(): void
     {
         $pegawai = $this->pegawai(['name' => 'Revina']);
         $surat = Surat::factory()->create([
@@ -169,17 +165,16 @@ class InteractionFeedbackTest extends TestCase
             'status' => Surat::STATUS_SEDANG_DIPROSES,
         ]);
 
-        $this->actingAs($this->kepalaBidang())
-            ->get(route('kepala-bidang.surat.edit', $surat))
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.edit', $surat))
             ->assertOk()
-            ->assertSee('data-assignment-confirm', false)
-            ->assertSee('data-initial-pegawai-id="'.$pegawai->id.'"', false)
-            ->assertSee('data-initial-pegawai-name="Revina"', false)
+            ->assertDontSee('data-assignment-confirm', false)
+            ->assertDontSee('name="pegawai_id"', false)
             ->assertSee('data-dirty-form', false)
             ->assertSee('data-loading-label="Memperbarui..."', false);
 
         $this->actingAs($pegawai)
-            ->get(route('pegawai.surat-saya.show', $surat))
+            ->get(route('surat-saya.show', $surat))
             ->assertOk()
             ->assertSee('data-confirm-title="Tandai Surat Selesai?"', false)
             ->assertSee('data-confirm-label="Ya, Tandai Selesai"', false)
@@ -192,29 +187,27 @@ class InteractionFeedbackTest extends TestCase
         $surat = Surat::factory()->create(['pegawai_id' => $pegawai->id]);
 
         $this->actingAs($pegawai)
-            ->patch(route('pegawai.surat-saya.update-status', $surat), [
+            ->patch(route('surat-saya.update-status', $surat), [
                 'status' => Surat::STATUS_SEDANG_DIPROSES,
             ])
-            ->assertSessionHas('success', 'Surat mulai diproses.');
+            ->assertSessionHas('success', 'Surat berhasil mulai diproses.');
 
         $this->actingAs($pegawai)
-            ->patch(route('pegawai.surat-saya.update-status', $surat->fresh()), [
+            ->patch(route('surat-saya.update-status', $surat->fresh()), [
                 'status' => Surat::STATUS_SELESAI,
             ])
-            ->assertSessionHas('success', 'Surat berhasil ditandai selesai.');
+            ->assertSessionHas('success', 'Surat berhasil diselesaikan.');
     }
 
-    private function kepalaBidang(array $attributes = []): User
+    private function pengguna(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role' => User::ROLE_KEPALA_BIDANG,
         ], $attributes));
     }
 
     private function pegawai(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role' => User::ROLE_PEGAWAI,
         ], $attributes));
     }
 
@@ -224,9 +217,10 @@ class InteractionFeedbackTest extends TestCase
         return array_merge([
             'nomor_surat' => 'UI/001/2026',
             'tanggal_masuk' => '2026-09-04',
-            'perihal' => 'Pengujian feedback antarmuka',
             'pemohon_pengirim' => 'PT Contoh',
-            'pegawai_id' => null,
+            'kategori_surat_id' => KategoriSurat::query()
+                ->where('slug', KategoriSurat::SLUG_PENGURANGAN_PBB)
+                ->value('id'),
             'keterangan' => null,
         ], $overrides);
     }
@@ -237,9 +231,9 @@ class InteractionFeedbackTest extends TestCase
         return $this->payload(array_merge([
             'nomor_surat' => $surat->nomor_surat,
             'tanggal_masuk' => $surat->tanggal_masuk->format('Y-m-d'),
-            'perihal' => $surat->perihal,
             'pemohon_pengirim' => $surat->pemohon_pengirim,
-            'pegawai_id' => $surat->pegawai_id,
+            'kategori_surat_id' => $surat->kategori_surat_id
+                ?? KategoriSurat::query()->where('slug', KategoriSurat::SLUG_PENGURANGAN_PBB)->value('id'),
             'keterangan' => $surat->keterangan,
         ], $overrides));
     }
