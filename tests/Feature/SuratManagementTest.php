@@ -131,13 +131,13 @@ class SuratManagementTest extends TestCase
     public function test_nomor_surat_yang_sudah_ada_ditolak_dengan_pesan_yang_jelas(): void
     {
         Surat::factory()->create([
-            'nomor_surat' => '001/UNIK/2026',
+            'nomor_surat' => '2026.7000.001',
             'pemohon_pengirim' => 'PEMOHON YANG SAMA',
         ]);
 
         $this->actingAs($this->pengguna())
             ->post(route('surat.store'), $this->validPayload([
-                'nomor_surat' => '  001/unik/2026  ',
+                'nomor_surat' => '  2026.7000.001  ',
                 'pemohon_pengirim' => 'PEMOHON YANG SAMA',
             ]))
             ->assertSessionHasErrors([
@@ -150,19 +150,19 @@ class SuratManagementTest extends TestCase
     public function test_nama_pemohon_boleh_sama_selama_nomor_surat_berbeda(): void
     {
         Surat::factory()->create([
-            'nomor_surat' => '001/NAMA-SAMA/2026',
+            'nomor_surat' => '2026.7000.002',
             'pemohon_pengirim' => 'NAMA PEMOHON SAMA',
         ]);
 
         $this->actingAs($this->pengguna())
             ->post(route('surat.store'), $this->validPayload([
-                'nomor_surat' => '  002/NAMA-SAMA/2026  ',
+                'nomor_surat' => '  2026.7000.003  ',
                 'pemohon_pengirim' => 'NAMA PEMOHON SAMA',
             ]))
             ->assertRedirect();
 
         $this->assertDatabaseHas('surats', [
-            'nomor_surat' => '002/NAMA-SAMA/2026',
+            'nomor_surat' => '2026.7000.003',
             'pemohon_pengirim' => 'NAMA PEMOHON SAMA',
         ]);
         $this->assertDatabaseCount('surats', 2);
@@ -170,13 +170,13 @@ class SuratManagementTest extends TestCase
 
     public function test_edit_boleh_mempertahankan_nomor_sendiri_tetapi_tidak_boleh_memakai_nomor_surat_lain(): void
     {
-        $suratPertama = Surat::factory()->create(['nomor_surat' => '001/EDIT/2026']);
-        $suratKedua = Surat::factory()->create(['nomor_surat' => '002/EDIT/2026']);
+        $suratPertama = Surat::factory()->create(['nomor_surat' => '2026.7000.004']);
+        $suratKedua = Surat::factory()->create(['nomor_surat' => '2026.7000.005']);
         $pengguna = $this->pengguna();
 
         $this->actingAs($pengguna)
             ->put(route('surat.update', $suratKedua), $this->validPayload([
-                'nomor_surat' => '002/EDIT/2026',
+                'nomor_surat' => '2026.7000.005',
             ]))
             ->assertRedirect(route('surat.show', $suratKedua));
 
@@ -188,7 +188,7 @@ class SuratManagementTest extends TestCase
                 'nomor_surat' => 'Nomor surat sudah ada. Koreksi kembali input nomor surat Anda.',
             ]);
 
-        $this->assertSame('002/EDIT/2026', $suratKedua->fresh()->nomor_surat);
+        $this->assertSame('2026.7000.005', $suratKedua->fresh()->nomor_surat);
     }
 
     public function test_create_form_has_no_status_input_and_shows_initial_status_information(): void
@@ -322,12 +322,12 @@ class SuratManagementTest extends TestCase
 
         $this->actingAs($this->pengguna())
             ->put(route('surat.update', $surat), $this->validPayload([
-                'nomor_surat' => '456/EDIT/2026',
+                'nomor_surat' => '2026.7000.006',
             ]))
             ->assertRedirect(route('surat.show', $surat));
 
         $surat->refresh();
-        $this->assertSame('456/EDIT/2026', $surat->nomor_surat);
+        $this->assertSame('2026.7000.006', $surat->nomor_surat);
         $this->assertSame(Surat::STATUS_SEDANG_DIPROSES, $surat->status);
     }
 
@@ -892,7 +892,7 @@ class SuratManagementTest extends TestCase
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
-            'nomor_surat' => '123/ABC/2026',
+            'nomor_surat' => '2026.7000.007',
             'tanggal_masuk' => '2026-09-03',
             'pemohon_pengirim' => 'PT XYZ',
             'kategori_surat_id' => KategoriSurat::query()

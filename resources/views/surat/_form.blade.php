@@ -18,9 +18,10 @@
 <div class="form-grid">
     <div class="form-field">
         <label for="nomor_surat">Nomor Surat <span class="required-mark" aria-hidden="true">*</span></label>
-        <input id="nomor_surat" name="nomor_surat" type="text" value="{{ old('nomor_surat', $surat->nomor_surat) }}" maxlength="255" required autofocus autocomplete="off" spellcheck="false" aria-describedby="nomor-surat-help{{ $errors->has('nomor_surat') ? ' nomor-surat-error' : '' }}" @class(['is-invalid' => $errors->has('nomor_surat')]) @if($errors->has('nomor_surat')) aria-invalid="true" @endif>
-        <span class="field-help" id="nomor-surat-help">Nomor surat wajib unik dan tidak boleh sama dengan surat yang sudah tersimpan.</span>
-        @error('nomor_surat')<span class="field-error" id="nomor-surat-error">{{ $message }}</span>@enderror
+        <input id="nomor_surat" name="nomor_surat" type="text" value="{{ old('nomor_surat', $surat->nomor_surat) }}" maxlength="255" required autofocus autocomplete="on" inputmode="decimal" spellcheck="false" data-surat-number-input aria-describedby="nomor-surat-help nomor-surat-client-error{{ $errors->has('nomor_surat') ? ' nomor-surat-error' : '' }}" @class(['is-invalid' => $errors->has('nomor_surat')]) @if($errors->has('nomor_surat')) aria-invalid="true" @endif>
+        <span class="field-help" id="nomor-surat-help">Gunakan angka dan tanda titik saja. Nomor surat wajib unik.</span>
+        <span class="field-error" id="nomor-surat-client-error" data-surat-number-feedback aria-live="polite" hidden></span>
+        @error('nomor_surat')<span class="field-error" id="nomor-surat-error" data-server-error>{{ $message }}</span>@enderror
     </div>
 
     <div class="form-field">
@@ -31,8 +32,10 @@
 
     <div class="form-field">
         <label for="pemohon_pengirim">Pemohon / Pengirim <span class="required-mark" aria-hidden="true">*</span></label>
-        <input id="pemohon_pengirim" name="pemohon_pengirim" type="text" value="{{ old('pemohon_pengirim', $surat->pemohon_pengirim) }}" maxlength="255" required @class(['is-invalid' => $errors->has('pemohon_pengirim')]) @if($errors->has('pemohon_pengirim')) aria-invalid="true" aria-describedby="pemohon-error" @endif>
-        @error('pemohon_pengirim')<span class="field-error" id="pemohon-error">{{ $message }}</span>@enderror
+        <input id="pemohon_pengirim" name="pemohon_pengirim" type="text" value="{{ old('pemohon_pengirim', $surat->pemohon_pengirim) }}" maxlength="255" required autocomplete="on" data-applicant-input aria-describedby="pemohon-help pemohon-client-error{{ $errors->has('pemohon_pengirim') ? ' pemohon-error' : '' }}" @class(['is-invalid' => $errors->has('pemohon_pengirim')]) @if($errors->has('pemohon_pengirim')) aria-invalid="true" @endif>
+        <span class="field-help" id="pemohon-help">Nama orang, perusahaan, organisasi, atau instansi harus mengandung minimal satu huruf.</span>
+        <span class="field-error" id="pemohon-client-error" data-applicant-feedback aria-live="polite" hidden></span>
+        @error('pemohon_pengirim')<span class="field-error" id="pemohon-error" data-server-error>{{ $message }}</span>@enderror
     </div>
 
     <div class="form-field">
@@ -56,6 +59,12 @@
 </div>
 
 <div class="form-actions">
-    <button class="primary-button" type="submit" data-loading-label="{{ $loadingLabel }}">{{ $submitLabel }}</button>
+    @if ($allowSaveAndAdd ?? false)
+        <input type="hidden" name="submit_action" value="{{ old('submit_action', 'save') }}" data-submit-action-field>
+        <button class="primary-button" type="submit" data-submit-action-value="save" data-loading-label="{{ $loadingLabel }}">{{ $submitLabel }}</button>
+        <button class="outline-button" type="submit" data-submit-action-value="save_and_add" data-loading-label="Menyimpan & menyiapkan form...">Simpan & Tambah Lagi</button>
+    @else
+        <button class="primary-button" type="submit" data-loading-label="{{ $loadingLabel }}">{{ $submitLabel }}</button>
+    @endif
     <a class="outline-button" href="{{ $cancelUrl }}">Batal / Kembali</a>
 </div>
