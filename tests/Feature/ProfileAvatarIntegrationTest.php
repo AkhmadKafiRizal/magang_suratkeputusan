@@ -82,6 +82,7 @@ class ProfileAvatarIntegrationTest extends TestCase
             ->get(route('surat.show', $assigned))
             ->assertOk()
             ->assertSee('user-avatar-fallback', false)
+            ->assertSee('user-avatar-fallback avatar-initials', false)
             ->assertSee('>RF</span>', false)
             ->assertDontSee(route('users.photo', $handler), false);
 
@@ -107,6 +108,7 @@ class ProfileAvatarIntegrationTest extends TestCase
             ->assertOk()
             ->assertSee('data-user-avatar-image', false)
             ->assertSee('data-user-avatar-fallback', false)
+            ->assertSee('avatar-initials', false)
             ->assertSee('>DP</span>', false);
     }
 
