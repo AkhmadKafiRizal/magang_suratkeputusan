@@ -43,6 +43,7 @@ class MonitoringPegawaiTest extends TestCase
             ->assertOk()
             ->assertSee('Monitoring Pegawai')
             ->assertSee('Revina Pegawai')
+            ->assertSee('employee-avatar avatar-initials', false)
             ->assertDontSee('<span>Monitoring Pegawai</span>', false)
             ->assertViewHas('pegawai', function ($pegawai) use ($revina, $pengguna): bool {
                 return $pegawai->pluck('id')->contains($revina->id)

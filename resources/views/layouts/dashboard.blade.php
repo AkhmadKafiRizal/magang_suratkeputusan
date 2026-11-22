@@ -162,7 +162,7 @@
                 </div>
                 <details class="profile-menu" data-profile-menu>
                     <summary class="profile-menu-trigger" aria-label="Profil dan pengaturan akun">
-                        <span class="topbar-avatar" aria-hidden="true">@if(auth()->user()->profile_photo_path)<img class="profile-avatar-image" src="{{ route('account.photo') }}" alt="">@else{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}@endif</span>
+                        <span class="topbar-avatar" aria-hidden="true">@if(auth()->user()->profile_photo_path)<img class="profile-avatar-image" src="{{ route('account.photo') }}" alt="">@else<span class="avatar-initials">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>@endif</span>
                         <span class="topbar-user-copy"><strong>{{ auth()->user()->name }}</strong><small>Akun Saya</small></span>
                         <svg class="profile-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </summary>

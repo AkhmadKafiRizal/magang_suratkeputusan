@@ -76,7 +76,7 @@
                 <article class="monitoring-employee-card">
                     <div class="monitoring-employee-header">
                         <div class="employee-identity">
-                            <span class="employee-avatar" aria-hidden="true">{{ strtoupper(substr($anggota->name, 0, 1)) }}</span>
+                            <span class="employee-avatar avatar-initials" aria-hidden="true">{{ strtoupper(substr($anggota->name, 0, 1)) }}</span>
                             <span>
                                 <strong>{{ $anggota->name }}</strong>
                                 <small>{{ $anggota->email }}</small>

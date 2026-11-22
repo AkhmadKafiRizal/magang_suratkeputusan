@@ -3,6 +3,14 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+@font-face {
+    font-family: 'Lobster Avatar';
+    src: url('../fonts/Lobster-Regular.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 400;
+}
+
 @theme {
     --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
@@ -371,6 +379,30 @@
     flex: 0 0 auto;
     border-radius: 12px;
     font-weight: 600;
+}
+
+.avatar-initials {
+    display: grid;
+    place-items: center;
+    font-family: 'Lobster Avatar', 'Brush Script MT', 'Segoe Script', cursive;
+    font-style: normal;
+    font-weight: 400;
+    font-synthesis: none;
+    line-height: 1;
+    letter-spacing: 0;
+    text-rendering: optimizeLegibility;
+}
+
+.topbar-avatar > .avatar-initials {
+    width: 100%;
+    height: 100%;
+    padding: 0 2px 2px 0;
+    font-size: 22px;
+}
+
+.employee-avatar.avatar-initials {
+    padding: 0 2px 2px 0;
+    font-size: 22px;
 }
 
 .user-avatar {
@@ -2004,10 +2036,20 @@
     font-size: 13px;
 }
 
+.user-avatar-small .avatar-initials {
+    padding: 0 2px 2px 0;
+    font-size: 18px;
+}
+
 .user-avatar-medium {
     width: 46px;
     height: 46px;
     font-size: 15px;
+}
+
+.user-avatar-medium .avatar-initials {
+    padding: 0 3px 2px 0;
+    font-size: 22px;
 }
 
 .user-avatar-image,
@@ -3591,6 +3633,7 @@ body:not(.dashboard-body) .toast-region {
 .account-card-heading p { color: var(--dashboard-muted); font-size: 14px; line-height: 1.6; margin: 0; }
 .account-settings-card .account-photo-row { padding: 18px; background: var(--dashboard-blue-50); border: 1px solid var(--dashboard-line); border-radius: 14px; margin: 0 0 24px; gap: 16px; }
 .account-settings-card .account-avatar { width: 72px; height: 72px; flex-basis: 72px; }
+.account-avatar > .avatar-initials { width: 100%; height: 100%; padding: 0 4px 3px 0; font-size: 32px; }
 .account-photo-delete-form { display: none !important; }
 .account-photo-field { gap: 7px; }
 .account-photo-file-name { color: var(--dashboard-blue-800); font-size: 12px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }

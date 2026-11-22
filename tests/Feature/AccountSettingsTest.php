@@ -105,6 +105,7 @@ class AccountSettingsTest extends TestCase
             ->assertSee('data-profile-photo-input', false)
             ->assertSee('data-profile-photo-save', false)
             ->assertSee('data-profile-photo-cancel', false)
+            ->assertSee('class="avatar-initials"', false)
             ->assertSee('data-profile-crop-modal', false)
             ->assertSee('data-profile-crop-canvas', false)
             ->assertSee('width="512" height="512"', false)
@@ -124,6 +125,28 @@ class AccountSettingsTest extends TestCase
         $this->assertStringContainsString('cropCanvas.toBlob', $javascript);
         $this->assertStringContainsString('const outputSize = 512', $javascript);
         $this->assertStringContainsString('new DataTransfer()', $javascript);
+    }
+
+    public function test_lobster_font_and_ofl_license_are_local_and_scoped_to_avatar_initials(): void
+    {
+        $fontPath = resource_path('fonts/Lobster-Regular.ttf');
+        $licensePath = resource_path('fonts/OFL.txt');
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertFileExists($fontPath);
+        $this->assertSame(406076, filesize($fontPath));
+        $this->assertSame(
+            'd6568e697fd50cedc0be04d8aae4127fe95add607e7bff954ca88604be80c205',
+            hash_file('sha256', $fontPath)
+        );
+        $this->assertFileExists($licensePath);
+        $this->assertStringContainsString('SIL Open Font License, Version 1.1', file_get_contents($licensePath));
+        $this->assertFileDoesNotExist(resource_path('fonts/AnandaBlackPersonalUseRegular-rg9Rx.ttf'));
+        $this->assertStringContainsString('font-family: \'Lobster Avatar\';', $css);
+        $this->assertStringContainsString('url(\'../fonts/Lobster-Regular.ttf\')', $css);
+        $this->assertStringContainsString('.avatar-initials {', $css);
+        $this->assertStringNotContainsString(".dashboard-body {\n    font-family: 'Lobster Avatar'", $css);
+        $this->assertStringNotContainsString('Ananda Black', $css);
     }
 
     public function test_existing_photo_displays_clear_delete_action_and_confirmation_copy(): void

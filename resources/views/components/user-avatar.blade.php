@@ -35,9 +35,9 @@
             @if ($lazy) loading="lazy" @endif
             data-user-avatar-image
         >
-        <span class="user-avatar-fallback" data-user-avatar-fallback hidden>{{ $initials }}</span>
+        <span class="user-avatar-fallback avatar-initials" data-user-avatar-fallback hidden>{{ $initials }}</span>
     @elseif ($user !== null)
-        <span class="user-avatar-fallback">{{ $initials }}</span>
+        <span class="user-avatar-fallback avatar-initials">{{ $initials }}</span>
     @else
         <svg class="user-avatar-system-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/>

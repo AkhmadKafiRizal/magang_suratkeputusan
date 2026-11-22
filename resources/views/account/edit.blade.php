@@ -37,7 +37,7 @@
     <form method="POST" action="{{ route('account.update') }}" enctype="multipart/form-data" data-loading-form data-dirty-form data-profile-photo-form>
         @csrf @method('PUT')
         <div class="account-photo-row">
-            <span class="account-avatar" data-profile-photo-preview aria-live="polite">@if($user->profile_photo_path)<img src="{{ route('account.photo') }}" alt="Foto profil Anda">@else{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}@endif</span>
+            <span class="account-avatar" data-profile-photo-preview aria-live="polite">@if($user->profile_photo_path)<img src="{{ route('account.photo') }}" alt="Foto profil Anda">@else<span class="avatar-initials">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</span>@endif</span>
             <div class="form-field account-photo-field">
                 <label for="photo">Pilih atau Ganti Foto Profil</label>
                 <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="photo-help photo-selection-status" data-profile-photo-input>
