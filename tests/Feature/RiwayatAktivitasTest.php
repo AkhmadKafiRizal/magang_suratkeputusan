@@ -72,14 +72,14 @@ class RiwayatAktivitasTest extends TestCase
     {
         $pengguna = $this->pengguna(['name' => 'Kafi']);
         $surat = Surat::factory()->create([
-            'nomor_surat' => 'LAMA/2026',
+            'nomor_surat' => '2026.6000.001',
             'pemohon_pengirim' => 'Pemohon lama',
             'kategori_surat_id' => $this->kategoriUtamaId(),
         ]);
 
         $this->actingAs($pengguna)
             ->put(route('surat.update', $surat), $this->payloadFor($surat, [
-                'nomor_surat' => 'BARU/2026',
+                'nomor_surat' => '2026.6000.002',
                 'pemohon_pengirim' => 'Pemohon baru',
             ]))
             ->assertRedirect();
@@ -87,7 +87,7 @@ class RiwayatAktivitasTest extends TestCase
         $aktivitas = AktivitasSurat::firstOrFail();
         $this->assertSame(AktivitasSurat::TIPE_SURAT_DIEDIT, $aktivitas->tipe);
         $this->assertSame(['nomor_surat', 'pemohon_pengirim'], $aktivitas->metadata['fields']);
-        $this->assertSame('Kafi memperbarui data administratif surat BARU/2026.', $aktivitas->deskripsi);
+        $this->assertSame('Kafi memperbarui data administratif surat 2026.6000.002.', $aktivitas->deskripsi);
     }
 
     public function test_saving_without_changes_does_not_record_surat_diedit(): void
@@ -386,7 +386,7 @@ class RiwayatAktivitasTest extends TestCase
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
-            'nomor_surat' => '004/BPK/IX/2026',
+            'nomor_surat' => '2026.6000.004',
             'tanggal_masuk' => '2026-09-03',
             'pemohon_pengirim' => 'PT XYZ',
             'kategori_surat_id' => KategoriSurat::query()

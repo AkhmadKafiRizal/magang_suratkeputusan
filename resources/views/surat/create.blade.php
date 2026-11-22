@@ -6,7 +6,8 @@
 
 @section('content')
     @php
-        $kategoriAktifForm = $kategoriSurats->first(fn ($k) => (string) $k->id === (string) old('kategori_surat_id', $surat->kategori_surat_id) || $k->slug === request('kategori'));
+        $kategoriTerpilih = old('kategori_surat_id', $surat->kategori_surat_id);
+        $kategoriAktifForm = $kategoriSurats->first(fn ($kategori) => (string) $kategori->id === (string) $kategoriTerpilih);
         $cancelUrl = $kategoriAktifForm
             ? route('surat.index', ['kategori' => $kategoriAktifForm->id])
             : route('surat.index');
@@ -26,6 +27,7 @@
                 'submitLabel' => 'Simpan Surat',
                 'loadingLabel' => 'Menyimpan...',
                 'cancelUrl' => $cancelUrl,
+                'allowSaveAndAdd' => true,
             ])
         </form>
     </section>

@@ -24,9 +24,16 @@ class SuratRequest extends FormRequest
 
         return [
             'nomor_surat' => [
+                'bail',
                 'required',
                 'string',
                 'max:255',
+                'regex:/\A[0-9.]+\z/',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (is_string($value) && $value !== '' && preg_match('/[0-9]/', $value) !== 1) {
+                        $fail('Nomor surat wajib mengandung setidaknya satu angka.');
+                    }
+                },
                 function (string $attribute, mixed $value, \Closure $fail) use ($suratId): void {
                     if (! is_string($value) || trim($value) === '') {
                         return;
@@ -45,7 +52,18 @@ class SuratRequest extends FormRequest
                 },
             ],
             'tanggal_masuk' => ['required', 'date'],
-            'pemohon_pengirim' => ['required', 'string', 'max:255'],
+            'pemohon_pengirim' => [
+                'bail',
+                'required',
+                'string',
+                'max:255',
+                "regex:/\A[\p{L}0-9 .,'’&()\/\-]+\z/u",
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (is_string($value) && $value !== '' && preg_match('/\p{L}/u', $value) !== 1) {
+                        $fail('Pemohon/Pengirim harus berisi nama orang atau badan usaha yang valid, bukan hanya angka atau simbol.');
+                    }
+                },
+            ],
             'kategori_surat_id' => [
                 'required',
                 'integer',
@@ -58,6 +76,7 @@ class SuratRequest extends FormRequest
             'mulai_diproses_pada' => ['prohibited'],
             'selesai_pada' => ['prohibited'],
             'keterangan' => ['nullable', 'string', 'max:10000'],
+            'submit_action' => ['sometimes', 'string', Rule::in(['save', 'save_and_add'])],
         ];
     }
 
@@ -68,9 +87,11 @@ class SuratRequest extends FormRequest
     {
         return [
             'nomor_surat.required' => 'Nomor surat wajib diisi.',
+            'nomor_surat.regex' => 'Nomor surat hanya boleh berisi angka dan tanda titik (.).',
             'tanggal_masuk.required' => 'Tanggal masuk wajib diisi.',
             'tanggal_masuk.date' => 'Tanggal masuk harus berupa tanggal yang valid.',
             'pemohon_pengirim.required' => 'Pemohon / pengirim wajib diisi.',
+            'pemohon_pengirim.regex' => 'Pemohon/Pengirim mengandung karakter yang tidak diperbolehkan. Gunakan huruf, angka, spasi, dan tanda baca nama yang wajar.',
             'kategori_surat_id.required' => 'Kategori surat wajib dipilih.',
             'kategori_surat_id.exists' => 'Kategori surat yang dipilih tidak valid.',
             'pegawai_id.missing' => 'Penangan surat tidak dapat dipilih melalui formulir ini. Setiap pegawai harus mengambil sendiri surat melalui menu Ambil Surat.',

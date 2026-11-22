@@ -199,6 +199,142 @@ document.querySelectorAll('input[type="date"][data-open-date-picker]').forEach((
     });
 });
 
+const setClientFieldValidation = (input, feedback, message, showFeedback = true) => {
+    input.setCustomValidity(message);
+
+    if (!showFeedback) {
+        return;
+    }
+
+    input.closest('.form-field')?.querySelectorAll('[data-server-error]').forEach((error) => {
+        error.hidden = true;
+    });
+    input.classList.toggle('is-invalid', message !== '');
+    feedback.textContent = message;
+    feedback.hidden = message === '';
+
+    if (message === '') {
+        input.removeAttribute('aria-invalid');
+    } else {
+        input.setAttribute('aria-invalid', 'true');
+    }
+};
+
+const nextInputValue = (input, insertedText) => {
+    const selectionStart = input.selectionStart ?? input.value.length;
+    const selectionEnd = input.selectionEnd ?? input.value.length;
+
+    return input.value.slice(0, selectionStart) + insertedText + input.value.slice(selectionEnd);
+};
+
+const showRejectedInput = (input, feedback, message, currentValidationMessage = '') => {
+    input.setCustomValidity(currentValidationMessage);
+    input.closest('.form-field')?.querySelectorAll('[data-server-error]').forEach((error) => {
+        error.hidden = true;
+    });
+    input.classList.toggle('is-invalid', currentValidationMessage !== '');
+    feedback.textContent = message;
+    feedback.hidden = false;
+
+    if (currentValidationMessage === '') {
+        input.removeAttribute('aria-invalid');
+    } else {
+        input.setAttribute('aria-invalid', 'true');
+    }
+};
+
+const suratNumberCharacterMessage = 'Nomor surat hanya boleh berisi angka dan tanda titik (.).';
+const suratNumberDigitMessage = 'Nomor surat wajib mengandung setidaknya satu angka.';
+
+const validateSuratNumber = (value) => {
+    if (value === '') {
+        return '';
+    }
+
+    if (!/^[0-9.]+$/.test(value)) {
+        return suratNumberCharacterMessage;
+    }
+
+    return /[0-9]/.test(value) ? '' : suratNumberDigitMessage;
+};
+
+document.querySelectorAll('[data-surat-number-input]').forEach((input) => {
+    const feedback = input.closest('.form-field')?.querySelector('[data-surat-number-feedback]');
+
+    if (!feedback) {
+        return;
+    }
+
+    const validateCurrentValue = (showFeedback = true) => {
+        setClientFieldValidation(input, feedback, validateSuratNumber(input.value), showFeedback);
+    };
+
+    input.addEventListener('beforeinput', (event) => {
+        if (event.isComposing || !event.inputType.startsWith('insert') || event.data === null) {
+            return;
+        }
+
+        if (!/^[0-9.]*$/.test(nextInputValue(input, event.data))) {
+            event.preventDefault();
+            showRejectedInput(input, feedback, suratNumberCharacterMessage, validateSuratNumber(input.value));
+        }
+    });
+
+    input.addEventListener('paste', (event) => {
+        const pastedText = event.clipboardData?.getData('text');
+
+        if (pastedText === undefined) {
+            return;
+        }
+
+        const message = validateSuratNumber(nextInputValue(input, pastedText));
+
+        if (message !== '') {
+            event.preventDefault();
+            showRejectedInput(input, feedback, message, validateSuratNumber(input.value));
+        }
+    });
+
+    input.addEventListener('input', () => validateCurrentValue());
+    input.addEventListener('blur', () => validateCurrentValue());
+    input.addEventListener('compositionend', () => validateCurrentValue());
+    validateCurrentValue(input.getAttribute('aria-invalid') !== 'true');
+});
+
+const applicantCharacterMessage = 'Pemohon/Pengirim mengandung karakter yang tidak diperbolehkan. Gunakan huruf, angka, spasi, dan tanda baca nama yang wajar.';
+const applicantLetterMessage = 'Pemohon/Pengirim harus berisi nama orang atau badan usaha yang valid, bukan hanya angka atau simbol.';
+const applicantAllowedPattern = /^[\p{L}0-9 .,'’&()\/\-]+$/u;
+const unicodeLetterPattern = /\p{L}/u;
+
+const validateApplicant = (value) => {
+    if (value === '') {
+        return '';
+    }
+
+    if (!applicantAllowedPattern.test(value)) {
+        return applicantCharacterMessage;
+    }
+
+    return unicodeLetterPattern.test(value) ? '' : applicantLetterMessage;
+};
+
+document.querySelectorAll('[data-applicant-input]').forEach((input) => {
+    const feedback = input.closest('.form-field')?.querySelector('[data-applicant-feedback]');
+
+    if (!feedback) {
+        return;
+    }
+
+    const validateCurrentValue = (showFeedback = true) => {
+        setClientFieldValidation(input, feedback, validateApplicant(input.value), showFeedback);
+    };
+
+    input.addEventListener('input', () => validateCurrentValue());
+    input.addEventListener('blur', () => validateCurrentValue());
+    input.addEventListener('compositionend', () => validateCurrentValue());
+    validateCurrentValue(input.getAttribute('aria-invalid') !== 'true');
+});
+
 document.querySelectorAll('[data-user-avatar-image]').forEach((image) => {
     const showFallback = () => {
         image.hidden = true;
@@ -1073,6 +1209,13 @@ document.addEventListener('submit', (event) => {
     if (form.dataset.submitting === 'true') {
         event.preventDefault();
         return;
+    }
+
+    const submitActionField = form.querySelector('[data-submit-action-field]');
+    const submitActionValue = event.submitter?.dataset.submitActionValue;
+
+    if (submitActionField && submitActionValue) {
+        submitActionField.value = submitActionValue;
     }
 
     const confirmation = confirmationForForm(form, event.submitter);

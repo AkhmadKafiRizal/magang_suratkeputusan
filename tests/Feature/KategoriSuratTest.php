@@ -60,13 +60,13 @@ class KategoriSuratTest extends TestCase
 
         $response = $this->actingAs($this->pengguna())
             ->post(route('surat.store'), [
-                'nomor_surat' => '001/PBB/2026',
+                'nomor_surat' => '2026.5000.001',
                 'tanggal_masuk' => '2026-10-15',
                 'pemohon_pengirim' => 'Wajib Pajak A',
                 'kategori_surat_id' => $kategori->id,
             ]);
 
-        $surat = Surat::query()->where('nomor_surat', '001/PBB/2026')->first();
+        $surat = Surat::query()->where('nomor_surat', '2026.5000.001')->first();
         $this->assertNotNull($surat);
         $this->assertSame($kategori->id, $surat->kategori_surat_id);
         $response->assertRedirect(route('surat.show', $surat));
@@ -78,14 +78,14 @@ class KategoriSuratTest extends TestCase
 
         $response = $this->actingAs($this->pengguna())
             ->post(route('surat.store'), [
-                'nomor_surat' => '002/INVALID/2026',
+                'nomor_surat' => '2026.5000.002',
                 'tanggal_masuk' => '2026-10-15',
                 'pemohon_pengirim' => 'Wajib Pajak B',
                 'kategori_surat_id' => 99999,
             ]);
 
         $response->assertSessionHasErrors('kategori_surat_id');
-        $this->assertDatabaseMissing('surats', ['nomor_surat' => '002/INVALID/2026']);
+        $this->assertDatabaseMissing('surats', ['nomor_surat' => '2026.5000.002']);
     }
 
     public function test_kategori_wajib_dipilih_saat_menambah_surat(): void
@@ -94,7 +94,7 @@ class KategoriSuratTest extends TestCase
 
         $this->actingAs($this->pengguna())
             ->post(route('surat.store'), [
-                'nomor_surat' => '003/TANPA-KATEGORI/2026',
+                'nomor_surat' => '2026.5000.003',
                 'tanggal_masuk' => '2026-10-15',
                 'pemohon_pengirim' => 'Wajib Pajak C',
             ])
@@ -102,7 +102,7 @@ class KategoriSuratTest extends TestCase
                 'kategori_surat_id' => 'Kategori surat wajib dipilih.',
             ]);
 
-        $this->assertDatabaseMissing('surats', ['nomor_surat' => '003/TANPA-KATEGORI/2026']);
+        $this->assertDatabaseMissing('surats', ['nomor_surat' => '2026.5000.003']);
     }
 
     public function test_form_tambah_memakai_dropdown_enam_kategori_resmi(): void

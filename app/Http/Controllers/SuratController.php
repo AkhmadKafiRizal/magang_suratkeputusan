@@ -64,19 +64,8 @@ class SuratController extends Controller
     public function create(Request $request): View
     {
         $surat = new Surat;
-        $kategoriParam = (string) $request->query('kategori', '');
-        if ($kategoriParam !== '') {
-            $kategori = KategoriSurat::query()
-                ->resmi()
-                ->when(
-                    ctype_digit($kategoriParam),
-                    fn (Builder $query) => $query->whereKey((int) $kategoriParam),
-                    fn (Builder $query) => $query->where('slug', $kategoriParam)
-                )
-                ->first();
-            $surat->kategori_surat_id = $kategori?->id
-                ?? KategoriSurat::query()->where('slug', KategoriSurat::SLUG_LAIN_LAIN)->value('id');
-        }
+        $kategoriKonteks = $this->kategoriDariKonteks((string) $request->query('kategori', ''));
+        $surat->kategori_surat_id = $kategoriKonteks?->id;
 
         return view('surat.create', [
             'surat' => $surat,
@@ -88,6 +77,8 @@ class SuratController extends Controller
         SuratRequest $request,
         AktivitasSuratService $aktivitasSurat
     ): RedirectResponse {
+        $submitAction = $request->validated('submit_action', 'save');
+
         $surat = DB::transaction(function () use ($request, $aktivitasSurat): Surat {
             $surat = new Surat;
             $surat->status = Surat::STATUS_BELUM_DITANGANI;
@@ -99,6 +90,12 @@ class SuratController extends Controller
 
             return $surat;
         });
+
+        if ($submitAction === 'save_and_add') {
+            return redirect()
+                ->route('surat.create', ['kategori' => $surat->kategori_surat_id])
+                ->with('success', 'Surat berhasil disimpan. Silakan tambahkan surat berikutnya.');
+        }
 
         return redirect()
             ->route('surat.show', $surat)
@@ -190,6 +187,24 @@ class SuratController extends Controller
             ->resmi()
             ->orderBy('urutan')
             ->get(['id', 'nama']);
+    }
+
+    private function kategoriDariKonteks(string $kategoriParam): ?KategoriSurat
+    {
+        $kategoriParam = mb_substr(trim($kategoriParam), 0, 100);
+
+        if ($kategoriParam === '') {
+            return null;
+        }
+
+        return KategoriSurat::query()
+            ->resmi()
+            ->when(
+                ctype_digit($kategoriParam),
+                fn (Builder $query) => $query->whereKey((int) $kategoriParam),
+                fn (Builder $query) => $query->where('slug', $kategoriParam)
+            )
+            ->first();
     }
 
     /** @return array{search: string, status: string, kategori: string} */

@@ -133,7 +133,7 @@ class InteractionFeedbackTest extends TestCase
 
     public function test_administrative_update_has_success_feedback(): void
     {
-        $surat = Surat::factory()->create();
+        $surat = Surat::factory()->create(['nomor_surat' => '2026.4000.001']);
 
         $this->actingAs($this->pengguna())
             ->put(route('surat.update', $surat), $this->payload([
@@ -215,7 +215,7 @@ class InteractionFeedbackTest extends TestCase
     private function payload(array $overrides = []): array
     {
         return array_merge([
-            'nomor_surat' => 'UI/001/2026',
+            'nomor_surat' => '2026.4000.002',
             'tanggal_masuk' => '2026-09-04',
             'pemohon_pengirim' => 'PT Contoh',
             'kategori_surat_id' => KategoriSurat::query()
