@@ -95,6 +95,30 @@
             <button class="outline-button" type="submit" data-loading-label="Mengirim kode...">Lupa Kata Sandi · Kirim Kode Verifikasi</button>
         </form>
     </div>
+    <aside class="developer-contact-panel" aria-labelledby="developer-contact-title">
+        <span class="developer-contact-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.7 8.2c.2-.4.4-.4.7-.4h.5c.2 0 .4.1.5.4l.7 1.7c.1.3.1.5-.1.7l-.6.7c-.2.2-.1.4 0 .6.5 1 1.3 1.8 2.3 2.3.2.1.4.2.6 0l.8-1c.2-.2.4-.3.7-.1l1.6.8c.3.1.4.3.4.6 0 .7-.4 1.4-1 1.8-.5.3-1 .5-1.7.4-1.4-.2-3.2-1-4.8-2.6-1.3-1.3-2.2-3-2.4-4.2-.1-.7.1-1.2.4-1.7Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <div class="developer-contact-copy">
+            <span class="section-kicker">Kontak developer</span>
+            <h3 id="developer-contact-title">Punya Kritik, Saran, atau Masukan?</h3>
+            <p>Bantu kami meningkatkan SIARKA. Jika mengalami kendala, menemukan masalah, atau memiliki kritik dan saran, silakan hubungi developer aplikasi melalui WhatsApp.</p>
+            <div class="developer-contact-identity">
+                <strong>Dev Kafi</strong>
+                <span>089654265231</span>
+            </div>
+        </div>
+        <a
+            class="developer-whatsapp-button"
+            href="{{ 'https://wa.me/6289654265231?text='.rawurlencode('Halo Dev Kafi, saya ingin menyampaikan kritik atau saran terkait aplikasi SIARKA.') }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Hubungi Dev Kafi melalui WhatsApp"
+        >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 8.5c.7 3.3 2.7 5.3 6 6" stroke-linecap="round"/></svg>
+            <span>Hubungi via WhatsApp</span>
+        </a>
+    </aside>
 </section>
 </div>
 

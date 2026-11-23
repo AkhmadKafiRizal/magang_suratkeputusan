@@ -79,7 +79,14 @@
         </div>
 
         <div class="table-scroll">
-            <table class="letters-table">
+            <table class="letters-table dashboard-letters-table">
+                <colgroup>
+                    <col class="dashboard-letter-number-column">
+                    <col class="dashboard-letter-date-column">
+                    <col class="dashboard-letter-applicant-column">
+                    <col class="dashboard-letter-status-column">
+                    <col class="dashboard-letter-action-column">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Nomor Surat</th>

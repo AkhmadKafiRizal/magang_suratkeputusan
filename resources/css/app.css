@@ -968,7 +968,50 @@
 }
 
 .dashboard-letter-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
     flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.dashboard-letter-actions form {
+    margin: 0;
+}
+
+.dashboard-letters-table {
+    min-width: 1180px;
+    table-layout: fixed;
+}
+
+.dashboard-letters-table .dashboard-letter-number-column {
+    width: 21%;
+}
+
+.dashboard-letters-table .dashboard-letter-date-column {
+    width: 18%;
+}
+
+.dashboard-letters-table .dashboard-letter-applicant-column {
+    width: 25%;
+}
+
+.dashboard-letters-table .dashboard-letter-status-column {
+    width: 19%;
+}
+
+.dashboard-letters-table .dashboard-letter-action-column {
+    width: 17%;
+}
+
+.dashboard-letters-table th:first-child,
+.dashboard-letters-table td:first-child,
+.dashboard-letters-table th:nth-child(2),
+.dashboard-letters-table td:nth-child(2),
+.dashboard-letters-table th:nth-child(4),
+.dashboard-letters-table td:nth-child(4),
+.dashboard-letters-table th:last-child,
+.dashboard-letters-table td:last-child {
     white-space: nowrap;
 }
 
@@ -3665,6 +3708,21 @@ body:not(.dashboard-body) .toast-region {
 .account-recovery-panel p { grid-area: copy; font-size: 13px; line-height: 1.55; color: var(--dashboard-muted); margin: 0; overflow-wrap: anywhere; }
 .account-recovery-panel form { grid-area: action; }
 .account-recovery-panel .outline-button { width: 100%; white-space: normal; text-align: center; }
+.developer-contact-panel { display: grid; grid-template-columns: 42px minmax(0, 1fr); grid-template-areas: "icon copy" "button button"; gap: 12px 14px; margin-top: 18px; padding: 18px; border: 1px solid #cfe0f4; border-radius: 14px; background: linear-gradient(145deg, #f8fbff 0%, #edf5ff 100%); }
+.developer-contact-icon { grid-area: icon; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; color: #18794e; background: #e5f7ed; }
+.developer-contact-icon svg { width: 24px; height: 24px; }
+.developer-contact-copy { grid-area: copy; min-width: 0; }
+.developer-contact-copy .section-kicker { font-size: 11px; }
+.developer-contact-copy h3 { margin: 4px 0 7px; color: var(--dashboard-ink); font-size: 17px; line-height: 1.35; }
+.developer-contact-copy p { margin: 0; color: var(--dashboard-muted); font-size: 13px; line-height: 1.6; }
+.developer-contact-identity { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 10px; margin-top: 11px; }
+.developer-contact-identity strong { color: var(--dashboard-blue-900); font-size: 14px; }
+.developer-contact-identity span { color: var(--dashboard-muted); font-size: 13px; font-weight: 600; }
+.developer-whatsapp-button { grid-area: button; display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 42px; padding: 9px 15px; border: 1px solid #18794e; border-radius: 10px; color: #fff; background: #18794e; font-size: 13px; font-weight: 700; text-align: center; transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.developer-whatsapp-button svg { width: 19px; height: 19px; flex: 0 0 auto; }
+.developer-whatsapp-button:hover { border-color: #12633f; color: #fff; background: #12633f; transform: translateY(-1px); }
+.developer-whatsapp-button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(24, 121, 78, .2); }
+.developer-whatsapp-button:active { transform: translateY(0); }
 @media (max-width: 1200px) { .account-settings-grid { grid-template-columns: minmax(0, 1fr); } }
 
 @media (max-width: 560px) {
@@ -3677,6 +3735,8 @@ body:not(.dashboard-body) .toast-region {
     .profile-crop-stage { width: min(100%, calc(100vh - 320px)); min-width: 220px; }
     .profile-crop-actions { align-items: stretch; }
     .profile-crop-actions button { flex: 1 1 0; justify-content: center; }
+    .developer-contact-panel { grid-template-columns: 38px minmax(0, 1fr); padding: 16px; }
+    .developer-contact-icon { width: 38px; height: 38px; }
 }
 
 @media (min-width: 1201px) {
