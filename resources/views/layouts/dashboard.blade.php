@@ -80,13 +80,13 @@
                         </div>
                     </div>
                 </div>
-                <a class="sidebar-link {{ $suratSayaAktif ? 'is-active' : '' }}" href="{{ route('surat-saya.index') }}" @if ($suratSayaAktif) aria-current="page" @endif>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7.5h6l2 2h8v10H4z" stroke-linejoin="round"/><path d="M8 14h8M8 17h5" stroke-linecap="round"/></svg>
-                    <span>Surat Saya</span>
-                </a>
                 <a class="sidebar-link {{ $suratTersediaAktif ? 'is-active' : '' }}" href="{{ route('surat-tersedia.index') }}" @if ($suratTersediaAktif) aria-current="page" @endif>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
                     <span>Ambil Surat</span>
+                </a>
+                <a class="sidebar-link {{ $suratSayaAktif ? 'is-active' : '' }}" href="{{ route('surat-saya.index') }}" @if ($suratSayaAktif) aria-current="page" @endif>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7.5h6l2 2h8v10H4z" stroke-linejoin="round"/><path d="M8 14h8M8 17h5" stroke-linecap="round"/></svg>
+                    <span>Surat Saya</span>
                 </a>
                 <div class="sidebar-dropdown-group" data-sidebar-dropdown>
                     <div class="sidebar-dropdown-header">
