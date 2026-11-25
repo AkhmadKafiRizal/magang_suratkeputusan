@@ -68,4 +68,6 @@
         </div>
         @include('surat._detail')
     </section>
+
+    @include('surat._history')
 @endsection

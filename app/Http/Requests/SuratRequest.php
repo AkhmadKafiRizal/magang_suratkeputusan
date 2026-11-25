@@ -41,7 +41,6 @@ class SuratRequest extends FormRequest
 
                     $nomorSurat = mb_strtolower(trim($value));
                     $sudahAda = Surat::query()
-                        ->withTrashed()
                         ->whereRaw('LOWER(TRIM(nomor_surat)) = ?', [$nomorSurat])
                         ->when($suratId !== null, fn ($query) => $query->where('id', '!=', $suratId))
                         ->exists();

@@ -608,8 +608,8 @@ const updateQuickStatusView = (form, surat) => {
 
     if (surat.status === 'selesai') {
         const badge = document.createElement('span');
-        badge.className = 'status-badge status-selesai';
-        badge.textContent = 'Selesai';
+        badge.className = 'status-badge status-selesai status-final-badge';
+        badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 12 4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Selesai</span>';
         form.replaceWith(badge);
         return;
     }
@@ -632,6 +632,7 @@ const updateQuickStatusView = (form, surat) => {
         button.disabled = false;
         button.removeAttribute('aria-busy');
         button.dataset.loadingLabel = sedangDiproses ? 'Menyelesaikan...' : 'Memproses...';
+        button.dataset.actionLabel = sedangDiproses ? 'Selesaikan' : 'Mulai';
         button.setAttribute('aria-label', `${sedangDiproses ? 'Selesaikan' : 'Mulai proses'} surat ${form.dataset.suratNumber}`);
         replaceButtonLabel(button, label);
     }
@@ -1252,3 +1253,275 @@ document.addEventListener('submit', (event) => {
         }
     });
 });
+
+document.querySelectorAll('[data-bulk-table]').forEach((table) => {
+    const items = [...table.querySelectorAll('[data-bulk-item]')];
+    const selectAll = table.querySelector('[data-bulk-select-all]');
+    const formId = items[0]?.getAttribute('form');
+    const form = formId ? document.getElementById(formId) : null;
+    if (!form) return;
+
+    const update = () => {
+        const checked = items.filter((item) => item.checked);
+        form.querySelector('[data-bulk-count]').textContent = String(checked.length);
+        form.querySelectorAll('[data-bulk-control]').forEach((control) => { control.disabled = checked.length === 0; });
+        if (selectAll) {
+            selectAll.checked = checked.length === items.length;
+            selectAll.indeterminate = checked.length > 0 && checked.length < items.length;
+        }
+        items.forEach((item) => item.closest('tr')?.classList.toggle('is-selected', item.checked));
+        form.dataset.confirmMessage = `${checked.length} surat akan diproses. Sistem tetap memeriksa hak akses dan status terbaru setiap surat.`;
+    };
+
+    selectAll?.addEventListener('change', () => {
+        items.forEach((item) => { item.checked = selectAll.checked; });
+        update();
+    });
+    items.forEach((item) => item.addEventListener('change', update));
+    update();
+});
+
+const descriptionModal = document.querySelector('[data-description-modal]');
+if (descriptionModal) {
+    if (descriptionModal.parentElement !== document.body) {
+        document.body.appendChild(descriptionModal);
+    }
+    const form = descriptionModal.querySelector('[data-description-form]');
+    const input = descriptionModal.querySelector('[data-description-input]');
+    const panel = descriptionModal.querySelector('[role="dialog"]');
+    let descriptionTrigger = null;
+    let descriptionClosing = false;
+    const finishClose = () => {
+        descriptionModal.hidden = true;
+        descriptionModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+        descriptionClosing = false;
+        descriptionTrigger?.focus({ preventScroll: true });
+    };
+    const close = () => {
+        if (descriptionModal.hidden || descriptionClosing) return;
+        descriptionClosing = true;
+        descriptionModal.classList.remove('is-open');
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            finishClose();
+        } else {
+            window.setTimeout(finishClose, 200);
+        }
+    };
+    const open = (button) => {
+        if (!descriptionModal.hidden) return;
+        descriptionTrigger = button;
+        form.action = button.dataset.descriptionUrl;
+        input.value = button.dataset.descriptionValue || '';
+        form.querySelector('[data-description-id]').value = button.closest('[data-surat-row]')?.dataset.suratRow || '';
+        descriptionModal.querySelector('[data-description-number]').textContent = `Nomor Surat: ${button.dataset.descriptionNumber}`;
+        descriptionModal.hidden = false;
+        descriptionModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        panel.scrollTop = 0;
+        panel.focus({ preventScroll: true });
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+            if (descriptionClosing || descriptionModal.hidden) return;
+            descriptionModal.classList.add('is-open');
+        }));
+    };
+    document.querySelectorAll('[data-description-edit]').forEach((button) => {
+        button.addEventListener('click', () => open(button));
+    });
+    if (descriptionModal.dataset.descriptionReopenId) {
+        const reopenButton = document.querySelector(`[data-surat-row="${CSS.escape(descriptionModal.dataset.descriptionReopenId)}"] [data-description-edit]`);
+        reopenButton?.click();
+        input.value = descriptionModal.dataset.descriptionReopenValue || '';
+    }
+    descriptionModal.querySelectorAll('[data-description-close]').forEach((button) => button.addEventListener('click', close));
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !descriptionModal.hidden && !event.defaultPrevented) close();
+        if (event.key !== 'Tab' || descriptionModal.hidden) return;
+        const focusable = [...panel.querySelectorAll('button:not([disabled]), textarea:not([disabled]), select:not([disabled]), input:not([type="hidden"]):not([disabled]), a[href]')]
+            .filter((element) => !element.closest('[hidden]'));
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && [first, panel].includes(document.activeElement)) { event.preventDefault(); last.focus(); }
+        if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    });
+}
+
+const descriptionSuggestionCache = new Map();
+const descriptionSuggestionRequests = new Map();
+const descriptionCacheKey = (root, query) => `${root.dataset.suggestionsUrl}|${query.trim().toLocaleLowerCase('id-ID')}`;
+const requestDescriptionSuggestions = (root, query, signal) => {
+    const key = descriptionCacheKey(root, query);
+    if (descriptionSuggestionCache.has(key)) return Promise.resolve(descriptionSuggestionCache.get(key));
+    if (descriptionSuggestionRequests.has(key)) return descriptionSuggestionRequests.get(key);
+
+    const url = new URL(root.dataset.suggestionsUrl, window.location.origin);
+    url.searchParams.set('q', query.trim());
+    const request = fetch(url, { headers: { Accept: 'application/json' }, signal })
+        .then((response) => {
+            if (!response.ok) throw new Error(`Suggestion request failed with status ${response.status}`);
+            return response.json();
+        })
+        .then((payload) => {
+            const suggestions = Array.isArray(payload.suggestions)
+                ? payload.suggestions.filter((suggestion) => typeof suggestion === 'string').slice(0, 10)
+                : [];
+            descriptionSuggestionCache.set(key, suggestions);
+            return suggestions;
+        })
+        .finally(() => descriptionSuggestionRequests.delete(key));
+    descriptionSuggestionRequests.set(key, request);
+
+    return request;
+};
+
+const descriptionAutocompleteRoots = [...document.querySelectorAll('[data-description-autocomplete]')];
+descriptionAutocompleteRoots.forEach((root) => {
+    if (root.dataset.autocompleteReady === 'true') return;
+    root.dataset.autocompleteReady = 'true';
+    const input = root.querySelector('textarea');
+    const list = root.querySelector('[data-description-suggestions]');
+    let timer;
+    let controller;
+    let requestVersion = 0;
+    let lastImmediateLoad = 0;
+    const hide = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); };
+    const render = (suggestions) => {
+        const fragment = document.createDocumentFragment();
+        suggestions.forEach((suggestion) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.setAttribute('role', 'option');
+            button.setAttribute('aria-selected', 'false');
+            button.textContent = suggestion;
+            button.addEventListener('focus', () => button.setAttribute('aria-selected', 'true'));
+            button.addEventListener('blur', () => button.setAttribute('aria-selected', 'false'));
+            button.addEventListener('click', () => {
+                input.value = suggestion;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                hide();
+                input.focus();
+            });
+            fragment.append(button);
+        });
+        list.replaceChildren(fragment);
+        list.hidden = list.childElementCount === 0;
+        input.setAttribute('aria-expanded', list.hidden ? 'false' : 'true');
+    };
+    const renderFromBaseCache = () => {
+        const baseSuggestions = descriptionSuggestionCache.get(descriptionCacheKey(root, ''));
+        if (!baseSuggestions) return;
+        const query = input.value.trim().toLocaleLowerCase('id-ID');
+        const matches = query === ''
+            ? baseSuggestions
+            : baseSuggestions.filter((suggestion) => suggestion.toLocaleLowerCase('id-ID').includes(query));
+        if (matches.length > 0) render(matches);
+    };
+    const load = (delay = 100) => {
+        window.clearTimeout(timer);
+        controller?.abort();
+        controller = null;
+        const query = input.value.trim();
+        const version = ++requestVersion;
+        const cached = descriptionSuggestionCache.get(descriptionCacheKey(root, query));
+        if (cached) {
+            render(cached);
+            return;
+        }
+        timer = window.setTimeout(async () => {
+            controller = new AbortController();
+            try {
+                const suggestions = await requestDescriptionSuggestions(root, query, controller.signal);
+                if (version !== requestVersion || input.value.trim() !== query) return;
+                render(suggestions);
+            } catch (error) {
+                if (error.name !== 'AbortError') hide();
+            }
+        }, delay);
+    };
+    const loadImmediately = () => {
+        const now = Date.now();
+        if (now - lastImmediateLoad < 120) return;
+        lastImmediateLoad = now;
+        load(0);
+    };
+    input.addEventListener('focus', loadImmediately);
+    input.addEventListener('click', loadImmediately);
+    input.addEventListener('input', () => {
+        renderFromBaseCache();
+        load(100);
+    });
+    input.addEventListener('keydown', (event) => {
+        const options = [...list.querySelectorAll('button')];
+        if (event.key === 'Escape' && !list.hidden) { event.preventDefault(); event.stopPropagation(); return hide(); }
+        if (!['ArrowDown', 'ArrowUp'].includes(event.key) || options.length === 0 || list.hidden) return;
+        event.preventDefault();
+        (event.key === 'ArrowDown' ? options[0] : options[options.length - 1]).focus();
+    });
+    list.addEventListener('keydown', (event) => {
+        const options = [...list.querySelectorAll('button')];
+        const current = options.indexOf(document.activeElement);
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); hide(); input.focus(); return; }
+        if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+        event.preventDefault();
+        const offset = event.key === 'ArrowDown' ? 1 : -1;
+        options[(current + offset + options.length) % options.length]?.focus();
+    });
+    document.addEventListener('click', (event) => { if (!root.contains(event.target)) hide(); });
+});
+
+descriptionAutocompleteRoots.forEach((root) => {
+    const input = root.querySelector('textarea');
+    const prime = () => requestDescriptionSuggestions(root, input?.value.trim() || '').catch(() => {});
+    if ('requestIdleCallback' in window) window.requestIdleCallback(prime, { timeout: 500 });
+    else window.setTimeout(prime, 0);
+});
+
+const bulkResultModal = document.querySelector('[data-bulk-result-modal]');
+if (bulkResultModal) {
+    const panel = bulkResultModal.querySelector('[role="dialog"]');
+    const workspace = document.querySelector('.dashboard-shell');
+    const previouslyFocused = document.activeElement;
+    let timer;
+    let removalTimer;
+    let closing = false;
+    let closed = false;
+    const finishClose = () => {
+        if (closed) return;
+        closed = true;
+        window.clearTimeout(removalTimer);
+        bulkResultModal.remove();
+        workspace?.removeAttribute('inert');
+        document.body.classList.remove('bulk-result-open');
+        if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) previouslyFocused.focus({ preventScroll: true });
+    };
+    const close = () => {
+        if (closing) return;
+        closing = true;
+        window.clearTimeout(timer);
+        document.removeEventListener('keydown', onKeydown);
+        bulkResultModal.classList.add('is-closing');
+        bulkResultModal.classList.remove('is-open');
+        panel?.addEventListener('transitionend', finishClose, { once: true });
+        removalTimer = window.setTimeout(finishClose, 260);
+    };
+    const onKeydown = (event) => {
+        if (event.key === 'Escape') return close();
+        if (event.key !== 'Tab' || !panel) return;
+        const focusable = [...panel.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])')];
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.body.classList.add('bulk-result-open');
+    workspace?.setAttribute('inert', '');
+    bulkResultModal.querySelector('[data-bulk-result-close]')?.addEventListener('click', close, { once: true });
+    document.addEventListener('keydown', onKeydown);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        bulkResultModal.classList.add('is-open');
+        panel?.focus({ preventScroll: true });
+        timer = window.setTimeout(close, Number(bulkResultModal.dataset.timeout || 20000));
+    }));
+}

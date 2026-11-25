@@ -69,7 +69,7 @@ class KategoriSuratTest extends TestCase
         $surat = Surat::query()->where('nomor_surat', '2026.5000.001')->first();
         $this->assertNotNull($surat);
         $this->assertSame($kategori->id, $surat->kategori_surat_id);
-        $response->assertRedirect(route('surat.show', $surat));
+        $response->assertRedirect(route('surat.index'));
     }
 
     public function test_validasi_menolak_kategori_yang_tidak_ada(): void

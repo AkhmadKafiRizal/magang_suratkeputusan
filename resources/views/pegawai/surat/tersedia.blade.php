@@ -80,10 +80,16 @@
                 @endif
             </div>
         @else
+            <form id="bulk-claim-form" class="bulk-action-bar" method="POST" action="{{ route('surat-tersedia.bulk-ambil') }}" data-loading-form data-bulk-form data-confirm-title="Ambil Surat Terpilih?" data-confirm-label="Ya, Ambil Surat" data-confirm-loading-label="Mengambil...">
+                @csrf
+                <span><strong data-bulk-count>0</strong> surat terpilih pada halaman ini</span>
+                <button class="primary-button" type="submit" disabled data-bulk-control data-loading-label="Mengambil...">Ambil Surat Terpilih</button>
+            </form>
             <div class="table-scroll">
-                <table class="letters-table employee-letters-table">
+                <table class="letters-table employee-letters-table" data-bulk-table>
                     <thead>
                         <tr>
+                            <th class="selection-column"><input type="checkbox" data-bulk-select-all aria-label="Pilih semua surat pada halaman ini"></th>
                             <th>Nomor Surat</th>
                             <th>Tanggal Masuk</th>
                             <th>Pemohon / Pengirim</th>
@@ -95,6 +101,7 @@
                     <tbody>
                         @foreach ($surats as $surat)
                             <tr>
+                                <td class="selection-column"><input form="bulk-claim-form" name="surat_ids[]" type="checkbox" value="{{ $surat->id }}" data-bulk-item aria-label="Pilih surat {{ $surat->nomor_surat }}"></td>
                                 <td><strong>{{ $surat->nomor_surat }}</strong></td>
                                 <td>{{ $surat->tanggal_masuk->locale('id')->translatedFormat('d M Y') }}</td>
                                 <td>{{ $surat->pemohon_pengirim }}</td>

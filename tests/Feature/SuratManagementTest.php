@@ -120,7 +120,7 @@ class SuratManagementTest extends TestCase
             ->post(route('surat.store'), $this->validPayload());
 
         $surat = Surat::firstOrFail();
-        $response->assertRedirect(route('surat.show', $surat));
+        $response->assertRedirect(route('surat.index'));
         $this->assertSame(Surat::STATUS_BELUM_DITANGANI, $surat->status);
         $this->assertNull($surat->pegawai_id);
         $this->assertNull($surat->ditugaskan_pada);
@@ -268,24 +268,59 @@ class SuratManagementTest extends TestCase
         ]);
     }
 
-    public function test_detail_without_catatan_uses_a_human_readable_empty_label(): void
+    public function test_empty_keterangan_uses_a_dash_only_in_display_surfaces(): void
     {
         $pegawai = $this->pegawai();
-        $surat = Surat::factory()->create([
-            'pegawai_id' => $pegawai->id,
-            'keterangan' => null,
-        ]);
+        $cases = [
+            'null' => null,
+            'empty' => '',
+            'spaces' => '   ',
+            'text' => 'Keterangan asli tetap tampil.',
+            'zero' => '0',
+        ];
 
-        $this->actingAs($this->pengguna())
-            ->get(route('surat.show', $surat))
-            ->assertOk()
-            ->assertSee('Keterangan')
-            ->assertSee('Tidak ada keterangan');
+        $surats = collect($cases)->map(
+            fn (?string $keterangan, string $case): Surat => Surat::factory()->create([
+                'pegawai_id' => $pegawai->id,
+                'nomor_surat' => '2098.0001.'.str_pad((string) (array_search($case, array_keys($cases), true) + 1), 3, '0', STR_PAD_LEFT),
+                'keterangan' => $keterangan,
+            ])
+        );
 
-        $this->actingAs($pegawai)
-            ->get(route('surat-saya.show', $surat))
-            ->assertOk()
-            ->assertSee('Tidak ada keterangan');
+        foreach ($surats as $case => $surat) {
+            $expected = in_array($case, ['null', 'empty', 'spaces'], true)
+                ? '-'
+                : $cases[$case];
+
+            $this->actingAs($this->pengguna())
+                ->get(route('surat.show', $surat))
+                ->assertOk()
+                ->assertSee('Keterangan')
+                ->assertSee('<dd class="preserve-lines">'.e($expected).'</dd>', false);
+
+            $this->actingAs($pegawai)
+                ->get(route('surat-saya.show', $surat))
+                ->assertOk()
+                ->assertSee('<dd class="preserve-lines">'.e($expected).'</dd>', false);
+        }
+
+        $dataSurat = $this->actingAs($this->pengguna())->get(route('surat.index'));
+        $dataSurat->assertOk();
+        $this->assertSame(3, substr_count($dataSurat->getContent(), '<td class="table-text-wide">-</td>'));
+        $dataSurat
+            ->assertSee('<td class="table-text-wide">Keterangan asli tetap tampil.</td>', false)
+            ->assertSee('<td class="table-text-wide">0</td>', false);
+
+        $suratSaya = $this->actingAs($pegawai)->get(route('surat-saya.index'));
+        $suratSaya->assertOk();
+        $this->assertSame(3, substr_count($suratSaya->getContent(), '<span class="preserve-lines quick-description-copy">-</span>'));
+        $suratSaya
+            ->assertSee('<span class="preserve-lines quick-description-copy">Keterangan asli tetap tampil.</span>', false)
+            ->assertSee('<span class="preserve-lines quick-description-copy">0</span>', false)
+            ->assertSee('data-description-value="   "', false)
+            ->assertDontSee('data-description-value="-"', false);
+
+        $this->assertSame($cases, $surats->map->fresh()->map->keterangan->all());
     }
 
     public function test_pengguna_cannot_send_sedang_diproses_status_manually(): void
@@ -866,6 +901,74 @@ class SuratManagementTest extends TestCase
         parse_str((string) parse_url($response->viewData('surats')->nextPageUrl(), PHP_URL_QUERY), $query);
         $this->assertSame('Pemohon khusus', $query['search']);
         $this->assertSame(Surat::STATUS_SEDANG_DIPROSES, $query['status']);
+    }
+
+    public function test_pagination_shows_three_moving_page_numbers_and_only_allows_safe_page_sizes(): void
+    {
+        Surat::factory()->count(60)->create([
+            'pemohon_pengirim' => 'Pemohon Paginasi Aman',
+            'status' => Surat::STATUS_SEDANG_DIPROSES,
+        ]);
+
+        $firstPage = $this->actingAs($this->pengguna())
+            ->get(route('surat.index'))
+            ->assertOk()
+            ->assertSee('aria-label="Halaman 1"', false)
+            ->assertSee('aria-label="Ke halaman 2"', false)
+            ->assertSee('aria-label="Ke halaman 3"', false)
+            ->assertDontSee('aria-label="Ke halaman 4"', false)
+            ->assertSee('<option value="10" selected>10</option>', false)
+            ->assertSee('value="25"', false)
+            ->assertSee('value="50"', false)
+            ->assertDontSee('value="all"', false)
+            ->assertDontSee('>Semua</option>', false);
+
+        $this->assertSame(10, $firstPage->viewData('surats')->count());
+
+        $this->actingAs($this->pengguna())
+            ->get(route('surat.index', ['page' => 3]))
+            ->assertOk()
+            ->assertDontSee('aria-label="Ke halaman 1"', false)
+            ->assertSee('aria-label="Ke halaman 2"', false)
+            ->assertSee('aria-label="Halaman 3"', false)
+            ->assertSee('aria-label="Ke halaman 4"', false);
+
+        foreach ([25, 50] as $perPage) {
+            $this->actingAs($this->pengguna())
+                ->get(route('surat.index', ['per_page' => $perPage]))
+                ->assertOk()
+                ->assertSee(sprintf('<option value="%d" selected>%d</option>', $perPage, $perPage), false)
+                ->assertViewHas('surats', fn ($surats): bool => $surats->count() === $perPage
+                    && $surats->perPage() === $perPage
+                    && $surats->total() === 60);
+        }
+
+        foreach (['all', 'invalid', '-1', '0', '51', '999999'] as $invalidPerPage) {
+            $this->actingAs($this->pengguna())
+                ->get(route('surat.index', ['per_page' => $invalidPerPage]))
+                ->assertOk()
+                ->assertDontSee('value="all"', false)
+                ->assertViewHas('surats', fn ($surats): bool => $surats->count() === 10
+                    && $surats->perPage() === 10
+                    && $surats->total() === 60);
+        }
+
+        $filtered = $this->actingAs($this->pengguna())
+            ->get(route('surat.index', [
+                'search' => 'Paginasi Aman',
+                'status' => Surat::STATUS_SEDANG_DIPROSES,
+                'per_page' => 25,
+                'page' => 1,
+            ]))
+            ->assertOk()
+            ->assertDontSee('name="page"', false)
+            ->assertViewHas('surats', fn ($surats): bool => $surats->count() === 25 && $surats->total() === 60);
+
+        parse_str((string) parse_url($filtered->viewData('surats')->nextPageUrl(), PHP_URL_QUERY), $query);
+        $this->assertSame('Paginasi Aman', $query['search']);
+        $this->assertSame(Surat::STATUS_SEDANG_DIPROSES, $query['status']);
+        $this->assertSame('25', $query['per_page']);
+        $this->assertSame('2', $query['page']);
     }
 
     public function test_application_timezone_defaults_to_asia_jakarta(): void
