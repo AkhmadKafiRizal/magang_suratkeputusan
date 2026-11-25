@@ -7,9 +7,12 @@ use App\Models\KategoriSurat;
 use App\Models\Surat;
 use App\Services\AktivitasSuratService;
 use App\Services\SuratExcelExportService;
+use App\Services\SuratNumberHistoryService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,12 +25,12 @@ class SuratController extends Controller
     public function index(Request $request): View
     {
         $filters = $this->filters($request);
-
-        $surats = $this->suratQuery($filters)
+        $perPage = $this->perPage($request);
+        $query = $this->suratQuery($filters)
             ->latest('tanggal_masuk')
-            ->latest('id')
-            ->paginate(10)
-            ->withQueryString();
+            ->latest('id');
+
+        $surats = $query->paginate($perPage)->withQueryString();
 
         return view('surat.index', [
             'surats' => $surats,
@@ -35,6 +38,13 @@ class SuratController extends Controller
             'kategoriSurats' => $this->daftarKategori(),
             'filters' => $filters,
         ]);
+    }
+
+    private function perPage(Request $request): int
+    {
+        $perPage = (string) $request->query('per_page', '10');
+
+        return in_array($perPage, ['10', '25', '50'], true) ? (int) $perPage : 10;
     }
 
     public function export(
@@ -79,17 +89,25 @@ class SuratController extends Controller
     ): RedirectResponse {
         $submitAction = $request->validated('submit_action', 'save');
 
-        $surat = DB::transaction(function () use ($request, $aktivitasSurat): Surat {
-            $surat = new Surat;
-            $surat->status = Surat::STATUS_BELUM_DITANGANI;
-            $surat->applyAdministrativeChanges($request->validated());
-            $surat->save();
+        try {
+            $surat = DB::transaction(function () use ($request, $aktivitasSurat): Surat {
+                $surat = new Surat;
+                $surat->status = Surat::STATUS_BELUM_DITANGANI;
+                $surat->applyAdministrativeChanges($request->validated());
+                $surat->save();
+                $aktivitasSurat->suratDicatat($surat, $request->user());
 
-            $actor = $request->user();
-            $aktivitasSurat->suratDicatat($surat, $actor);
+                return $surat;
+            });
+        } catch (QueryException $exception) {
+            if ($this->isActiveNumberConflict($exception)) {
+                return back()->withErrors([
+                    'nomor_surat' => 'Nomor surat tersebut sudah digunakan oleh surat aktif. Gunakan nomor surat lain.',
+                ])->withInput();
+            }
 
-            return $surat;
-        });
+            throw $exception;
+        }
 
         if ($submitAction === 'save_and_add') {
             return redirect()
@@ -98,19 +116,14 @@ class SuratController extends Controller
         }
 
         return redirect()
-            ->route('surat.show', $surat)
+            ->route('surat.index')
             ->with('success', 'Surat berhasil dicatat.');
     }
 
-    public function show(Surat $surat): View
+    public function show(Surat $surat, SuratNumberHistoryService $historyService): View
     {
         $surat->load(['pegawai:id,name,email,profile_photo_path', 'kategoriSurat:id,nama,slug']);
-        $aktivitasTerbaru = $surat->aktivitas()
-            ->with('actor:id,name,profile_photo_path')
-            ->latest('created_at')
-            ->latest('id')
-            ->limit(5)
-            ->get();
+        $aktivitasTerbaru = $historyService->for($surat, 5);
 
         return view('surat.show', compact('surat', 'aktivitasTerbaru'));
     }
@@ -128,29 +141,59 @@ class SuratController extends Controller
         Surat $surat,
         AktivitasSuratService $aktivitasSurat
     ): RedirectResponse {
-        DB::transaction(function () use ($request, $surat, $aktivitasSurat): void {
-            $actor = $request->user();
-            $nilaiLama = $this->nilaiAdministratif($surat);
+        try {
+            DB::transaction(function () use ($request, $surat, $aktivitasSurat): void {
+                $actor = $request->user();
+                $nilaiLama = $this->nilaiAdministratif($surat);
 
-            $surat->applyAdministrativeChanges($request->validated());
-            $nilaiBaru = $this->nilaiAdministratif($surat);
-            $fieldBerubah = [];
+                $surat->applyAdministrativeChanges($request->validated());
+                $nilaiBaru = $this->nilaiAdministratif($surat);
+                $fieldBerubah = [];
 
-            foreach ($nilaiLama as $field => $nilai) {
-                if ($nilai !== $nilaiBaru[$field]) {
-                    $fieldBerubah[] = $field;
+                foreach ($nilaiLama as $field => $nilai) {
+                    if ($nilai !== $nilaiBaru[$field]) {
+                        $fieldBerubah[] = $field;
+                    }
                 }
+
+                if ($fieldBerubah !== []) {
+                    $surat->save();
+                    $aktivitasSurat->suratDiedit($surat, $actor, $fieldBerubah);
+                }
+            });
+        } catch (QueryException $exception) {
+            if ($this->isActiveNumberConflict($exception)) {
+                return back()->withErrors([
+                    'nomor_surat' => 'Nomor surat tersebut sudah digunakan oleh surat aktif. Gunakan nomor surat lain.',
+                ])->withInput();
             }
 
-            if ($fieldBerubah !== []) {
-                $surat->save();
-                $aktivitasSurat->suratDiedit($surat, $actor, $fieldBerubah);
-            }
-        });
+            throw $exception;
+        }
 
         return redirect()
             ->route('surat.show', $surat)
             ->with('success', 'Data surat berhasil diperbarui.');
+    }
+
+    public function descriptionSuggestions(Request $request): JsonResponse
+    {
+        $query = mb_substr(trim((string) $request->query('q', '')), 0, 200);
+
+        $suggestions = Surat::query()
+            ->whereNotNull('keterangan')
+            ->whereRaw("TRIM(keterangan) <> ''")
+            ->when($query !== '', fn (Builder $builder) => $builder->where('keterangan', 'like', '%'.$query.'%'))
+            ->latest('updated_at')
+            ->limit(50)
+            ->pluck('keterangan')
+            ->map(fn (string $value) => trim($value))
+            ->filter()
+            ->unique(fn (string $value) => mb_strtolower($value))
+            ->take(10)
+            ->values();
+
+        return response()->json(['suggestions' => $suggestions]);
     }
 
     public function destroy(
@@ -293,5 +336,14 @@ class SuratController extends Controller
             'kategori_surat_id' => $surat->kategori_surat_id ? (string) $surat->kategori_surat_id : null,
             'keterangan' => $surat->keterangan,
         ];
+    }
+
+    private function isActiveNumberConflict(QueryException $exception): bool
+    {
+        return (int) ($exception->errorInfo[1] ?? 0) === 1062
+            && (
+                str_contains($exception->getMessage(), 'surats_nomor_surat_aktif_unique')
+                || str_contains($exception->getMessage(), 'surats_nomor_surat_unique')
+            );
     }
 }

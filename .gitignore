@@ -3,9 +3,11 @@
 .env
 .env.backup
 .env.production
+.env.testing
 .phpactor.json
 .phpunit.result.cache
 /.codex
+/.codex-temp/
 /.cursor/
 /.idea
 /.nova
@@ -27,4 +29,8 @@ Homestead.yaml
 Thumbs.db
 
 /database/*.sqlite
+*.sql
+*.sql.gz
+*.dump
+*.bak
 /projekmagang-hosting.zip

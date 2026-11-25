@@ -256,7 +256,7 @@ class SuratInputEfficiencyTest extends TestCase
             ]));
 
         $surat = Surat::query()->firstOrFail();
-        $response->assertRedirect(route('surat.show', $surat));
+        $response->assertRedirect(route('surat.index'));
         $this->assertSame($keterangan, $surat->keterangan);
 
         $this->actingAs($user)

@@ -26,6 +26,9 @@
 
     <section class="content-card filter-card" aria-label="Pencarian dan filter surat">
         <form class="filter-form data-filter-form" method="GET" action="{{ route('surat.index') }}">
+            @if (in_array((string) request('per_page'), ['10', '25', '50'], true))
+                <input type="hidden" name="per_page" value="{{ request('per_page') }}">
+            @endif
             <div class="filter-search">
                 <div class="filter-label-row">
                     <label for="search">Pencarian</label>
@@ -141,14 +144,14 @@
                                         Tidak tercatat
                                     @endif
                                 </td>
-                                <td class="table-text-wide">{{ filled($surat->keterangan) ? $surat->keterangan : 'Tidak ada keterangan' }}</td>
+                                <td class="table-text-wide">{{ filled($surat->keterangan) ? $surat->keterangan : '-' }}</td>
                                 <td><a class="table-action" href="{{ route('surat.show', $surat) }}">Lihat Detail</a></td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            <div class="pagination-wrap">{{ $surats->links('components.pagination') }}</div>
+            <div class="pagination-wrap">{{ $surats->links('components.pagination', ['showPerPage' => true]) }}</div>
         @endif
     </section>
 @endsection

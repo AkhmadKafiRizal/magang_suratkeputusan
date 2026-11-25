@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BulkSuratRequest;
+use App\Http\Requests\BulkUpdateSuratStatusRequest;
+use App\Http\Requests\UpdateSuratDescriptionRequest;
 use App\Http\Requests\UpdateSuratStatusRequest;
 use App\Models\KategoriSurat;
 use App\Models\Surat;
+use App\Models\User;
 use App\Services\AktivitasSuratService;
+use App\Services\SuratNumberHistoryService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,8 +26,9 @@ class SuratSayaController extends Controller
         $search = trim((string) $request->query('search', ''));
         $status = (string) $request->query('status', '');
         $kategoriFilter = (string) $request->query('kategori', '');
+        $perPage = $this->perPage($request);
 
-        $surats = Surat::query()
+        $query = Surat::query()
             ->with('kategoriSurat:id,nama,slug')
             ->where('pegawai_id', $request->user()->id)
             ->when($search !== '', function ($query) use ($search): void {
@@ -34,9 +40,9 @@ class SuratSayaController extends Controller
             ->when(array_key_exists($status, Surat::STATUS_LABELS), fn ($query) => $query->where('status', $status))
             ->when($kategoriFilter !== '', fn ($query) => $query->dalamKategori($kategoriFilter))
             ->latest('tanggal_masuk')
-            ->latest('id')
-            ->paginate(10)
-            ->withQueryString();
+            ->latest('id');
+
+        $surats = $query->paginate($perPage)->withQueryString();
 
         $kategoriSurats = Schema::hasTable('kategori_surats')
             ? KategoriSurat::query()->resmi()->orderBy('urutan')->get(['id', 'nama', 'slug'])
@@ -49,12 +55,21 @@ class SuratSayaController extends Controller
         ]);
     }
 
-    public function show(Surat $surat): View
+    private function perPage(Request $request): int
+    {
+        $perPage = (string) $request->query('per_page', '10');
+
+        return in_array($perPage, ['10', '25', '50'], true) ? (int) $perPage : 10;
+    }
+
+    public function show(Surat $surat, SuratNumberHistoryService $historyService): View
     {
         Gate::authorize('viewMine', $surat);
         $surat->load(['pegawai:id,name,email,profile_photo_path', 'kategoriSurat:id,nama,slug']);
 
-        return view('pegawai.surat.show', compact('surat'));
+        $aktivitasTerbaru = $historyService->for($surat, 5);
+
+        return view('pegawai.surat.show', compact('surat', 'aktivitasTerbaru'));
     }
 
     public function updateStatus(
@@ -130,6 +145,82 @@ class SuratSayaController extends Controller
             'updated_at' => $surat->updated_at->toIso8601String(),
             'updated_at_label' => $surat->updated_at->locale('id')->translatedFormat('d M Y, H:i').' WIB',
         ];
+    }
+
+    public function bulkUpdateStatus(
+        BulkUpdateSuratStatusRequest $request,
+        AktivitasSuratService $aktivitasSurat
+    ): RedirectResponse {
+        $berhasil = 0;
+        $gagal = [];
+        $statusTujuan = $request->validated('status');
+
+        foreach (array_values(array_unique($request->validated('surat_ids'))) as $id) {
+            $hasil = $this->advanceStatus((int) $id, $request->user()->id, $statusTujuan, $request, $aktivitasSurat);
+            if ($hasil['berhasil']) {
+                $berhasil++;
+            } else {
+                $gagal[] = $hasil['alasan'];
+            }
+        }
+
+        return back()->with('bulk_result', $this->bulkResult(
+            'Pembaruan Status Selesai',
+            $berhasil,
+            count($gagal),
+            $gagal,
+            'surat berhasil diperbarui',
+            'surat tidak dapat diperbarui'
+        ));
+    }
+
+    public function bulkAmbil(BulkSuratRequest $request, AktivitasSuratService $aktivitasSurat): RedirectResponse
+    {
+        $berhasil = 0;
+        $gagal = [];
+
+        foreach (array_values(array_unique($request->validated('surat_ids'))) as $id) {
+            if ($this->claimSurat((int) $id, $request->user()->id, $aktivitasSurat)) {
+                $berhasil++;
+            } else {
+                $gagal[] = 'Surat ID '.$id.' sudah tidak tersedia.';
+            }
+        }
+
+        return back()->with('bulk_result', $this->bulkResult(
+            'Pengambilan Surat Selesai',
+            $berhasil,
+            count($gagal),
+            $gagal,
+            'surat berhasil diambil',
+            'surat gagal karena sudah tidak tersedia'
+        ));
+    }
+
+    public function updateDescription(
+        UpdateSuratDescriptionRequest $request,
+        Surat $surat,
+        AktivitasSuratService $aktivitasSurat
+    ): RedirectResponse {
+        $changed = DB::transaction(function () use ($request, $surat, $aktivitasSurat): bool {
+            $locked = Surat::query()->lockForUpdate()->findOrFail($surat->id);
+            Gate::authorize('viewMine', $locked);
+            $value = $request->validated('keterangan');
+
+            if ($locked->keterangan === $value) {
+                return false;
+            }
+
+            $locked->keterangan = $value;
+            $locked->save();
+            $aktivitasSurat->suratDiedit($locked, $request->user(), ['keterangan']);
+
+            return true;
+        });
+
+        return back()->with($changed ? 'success' : 'info', $changed
+            ? 'Keterangan surat berhasil diperbarui.'
+            : 'Keterangan tidak berubah.');
     }
 
     public function batalkanPengambilan(
@@ -216,24 +307,7 @@ class SuratSayaController extends Controller
     ): RedirectResponse {
         $pegawai = $request->user();
 
-        $berhasil = DB::transaction(function () use ($surat, $pegawai, $aktivitasSurat): bool {
-            /** @var Surat|null $lockedSurat */
-            $lockedSurat = Surat::query()
-                ->lockForUpdate()
-                ->find($surat->id);
-
-            if (! $lockedSurat || $lockedSurat->pegawai_id !== null || $lockedSurat->status !== Surat::STATUS_BELUM_DITANGANI) {
-                return false;
-            }
-
-            $lockedSurat->pegawai_id = $pegawai->id;
-            $lockedSurat->ditugaskan_pada = now();
-            $lockedSurat->save();
-
-            $aktivitasSurat->suratDiambil($lockedSurat, $pegawai);
-
-            return true;
-        });
+        $berhasil = $this->claimSurat($surat->id, $pegawai->id, $aktivitasSurat);
 
         if (! $berhasil) {
             return redirect()
@@ -242,7 +316,73 @@ class SuratSayaController extends Controller
         }
 
         return redirect()
-            ->route('surat-saya.show', $surat)
+            ->route('surat-saya.index')
             ->with('success', "Surat {$surat->nomor_surat} berhasil diambil. Surat sekarang masuk ke menu Surat Saya dan siap diproses.");
+    }
+
+    /** @return array{berhasil: bool, alasan: string} */
+    private function advanceStatus(
+        int $suratId,
+        int $pegawaiId,
+        string $statusTujuan,
+        Request $request,
+        AktivitasSuratService $aktivitasSurat
+    ): array {
+        return DB::transaction(function () use ($suratId, $pegawaiId, $statusTujuan, $request, $aktivitasSurat): array {
+            $surat = Surat::query()->lockForUpdate()->find($suratId);
+
+            if (! $surat || $surat->pegawai_id !== $pegawaiId) {
+                return ['berhasil' => false, 'alasan' => 'Surat tidak ditemukan atau bukan tanggung jawab Anda.'];
+            }
+
+            if (! $surat->canAdvanceTo($statusTujuan)) {
+                return ['berhasil' => false, 'alasan' => "Surat {$surat->nomor_surat} tidak dapat beralih ke status tersebut."];
+            }
+
+            $sebelumnya = $surat->status;
+            $surat->advanceStatus($statusTujuan);
+            $surat->save();
+            $aktivitasSurat->statusDiperbarui($surat, $request->user(), $sebelumnya);
+
+            return ['berhasil' => true, 'alasan' => ''];
+        });
+    }
+
+    private function claimSurat(int $suratId, int $pegawaiId, AktivitasSuratService $aktivitasSurat): bool
+    {
+        return DB::transaction(function () use ($suratId, $pegawaiId, $aktivitasSurat): bool {
+            $surat = Surat::query()->lockForUpdate()->find($suratId);
+
+            if (! $surat || $surat->pegawai_id !== null || $surat->status !== Surat::STATUS_BELUM_DITANGANI) {
+                return false;
+            }
+
+            $surat->pegawai_id = $pegawaiId;
+            $surat->ditugaskan_pada = now();
+            $surat->save();
+            $aktivitasSurat->suratDiambil($surat, User::query()->findOrFail($pegawaiId));
+
+            return true;
+        });
+    }
+
+    /** @param array<int, string> $reasons */
+    private function bulkResult(
+        string $title,
+        int $success,
+        int $failure,
+        array $reasons,
+        string $successLabel,
+        string $failureLabel
+    ): array {
+        return [
+            'title' => $title,
+            'variant' => $success === 0 ? 'danger' : ($failure > 0 ? 'warning' : 'success'),
+            'success_count' => $success,
+            'failure_count' => $failure,
+            'success_label' => $successLabel,
+            'failure_label' => $failureLabel,
+            'reasons' => array_values(array_unique(array_slice($reasons, 0, 5))),
+        ];
     }
 }

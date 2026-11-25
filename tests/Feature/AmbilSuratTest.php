@@ -72,7 +72,7 @@ class AmbilSuratTest extends TestCase
         $this->assertSame(Surat::STATUS_BELUM_DITANGANI, $surat->status);
 
         $response
-            ->assertRedirect(route('surat-saya.show', $surat))
+            ->assertRedirect(route('surat-saya.index'))
             ->assertSessionHas('success', "Surat {$surat->nomor_surat} berhasil diambil. Surat sekarang masuk ke menu Surat Saya dan siap diproses.");
 
         $this->assertDatabaseHas('aktivitas_surats', [
@@ -151,7 +151,7 @@ class AmbilSuratTest extends TestCase
 
         $this->actingAs($pegawaiPertama)
             ->post(route('surat-tersedia.ambil', $surat))
-            ->assertRedirect(route('surat-saya.show', $surat));
+            ->assertRedirect(route('surat-saya.index'));
 
         $this->actingAs($pegawaiPertama)
             ->patch(route('surat-saya.cancel', $surat->fresh()))
@@ -159,7 +159,7 @@ class AmbilSuratTest extends TestCase
 
         $this->actingAs($pegawaiKedua)
             ->post(route('surat-tersedia.ambil', $surat->fresh()))
-            ->assertRedirect(route('surat-saya.show', $surat));
+            ->assertRedirect(route('surat-saya.index'));
 
         $surat->refresh();
         $this->assertSame($pegawaiKedua->id, $surat->pegawai_id);

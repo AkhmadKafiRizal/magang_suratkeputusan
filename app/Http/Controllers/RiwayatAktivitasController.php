@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\AktivitasSurat;
 use App\Models\Surat;
 use App\Models\User;
+use App\Services\SuratNumberHistoryService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class RiwayatAktivitasController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, SuratNumberHistoryService $historyService): View
     {
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:255'],
@@ -37,6 +38,12 @@ class RiwayatAktivitasController extends Controller
         $tipeAktivitas = AktivitasSurat::KATEGORI_FILTER[$kategori]['tipe'] ?? [];
         $penggunaId = isset($filters['pengguna']) ? (int) $filters['pengguna'] : null;
         $suratId = isset($filters['surat']) ? (int) $filters['surat'] : null;
+        $suratFilter = $suratId !== null
+            ? Surat::query()->find($suratId, ['id', 'nomor_surat'])
+            : null;
+        $suratIds = $suratFilter !== null
+            ? $historyService->suratIdsFor($suratFilter)
+            : collect();
 
         $aktivitas = AktivitasSurat::query()
             ->with([
@@ -55,7 +62,7 @@ class RiwayatAktivitasController extends Controller
             ->when($penggunaId !== null, fn ($query) => $query->where('user_id', $penggunaId))
             ->when(isset($filters['dari']), fn ($query) => $query->whereDate('created_at', '>=', $filters['dari']))
             ->when(isset($filters['sampai']), fn ($query) => $query->whereDate('created_at', '<=', $filters['sampai']))
-            ->when($suratId !== null, fn ($query) => $query->where('surat_id', $suratId))
+            ->when($suratFilter !== null, fn ($query) => $query->whereIn('surat_id', $suratIds))
             ->latest('created_at')
             ->latest('id')
             ->paginate(15)
@@ -67,9 +74,7 @@ class RiwayatAktivitasController extends Controller
             'pengguna' => User::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'suratFilter' => $suratId !== null
-                ? Surat::query()->find($suratId, ['id', 'nomor_surat'])
-                : null,
+            'suratFilter' => $suratFilter,
             'filterAktif' => collect($filters)
                 ->except('surat')
                 ->contains(fn ($value) => $value !== null && $value !== ''),

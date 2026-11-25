@@ -44,12 +44,42 @@ class QuickStatusUpdateTest extends TestCase
             ->assertSee('Nomor Surat: QUICK-PROSES')
             ->assertSee('aria-label="Mulai proses surat QUICK-BELUM"', false)
             ->assertSee('aria-label="Selesaikan surat QUICK-PROSES"', false)
-            ->assertSee('status-badge status-selesai', false)
+            ->assertSee('data-action-label="Mulai"', false)
+            ->assertSee('data-action-label="Selesaikan"', false)
+            ->assertSee('status-badge status-selesai status-final-badge', false)
             ->assertSee('data-status-updated-at', false)
             ->assertSee('Detail');
 
         $this->assertSame(2, substr_count($response->getContent(), 'data-quick-status-form'));
         $this->assertSame(Surat::STATUS_SELESAI, Surat::query()->where('nomor_surat', 'QUICK-SELESAI')->value('status'));
+    }
+
+    public function test_surat_saya_only_allows_safe_page_sizes_and_rejects_all_rows(): void
+    {
+        $pegawai = User::factory()->create();
+        Surat::factory()->count(60)->create(['pegawai_id' => $pegawai->id]);
+        Surat::factory()->create();
+
+        foreach ([10, 25, 50] as $perPage) {
+            $this->actingAs($pegawai)
+                ->get(route('surat-saya.index', ['per_page' => $perPage]))
+                ->assertOk()
+                ->assertSee(sprintf('<option value="%d" selected>%d</option>', $perPage, $perPage), false)
+                ->assertDontSee('value="all"', false)
+                ->assertViewHas('surats', fn ($surats): bool => $surats->count() === $perPage
+                    && $surats->perPage() === $perPage
+                    && $surats->total() === 60);
+        }
+
+        foreach (['all', 'invalid', '-1', '0', '51', '999999'] as $invalidPerPage) {
+            $this->actingAs($pegawai)
+                ->get(route('surat-saya.index', ['per_page' => $invalidPerPage]))
+                ->assertOk()
+                ->assertDontSee('value="all"', false)
+                ->assertViewHas('surats', fn ($surats): bool => $surats->count() === 10
+                    && $surats->perPage() === 10
+                    && $surats->total() === 60);
+        }
     }
 
     public function test_quick_update_starts_processing_and_returns_server_state(): void

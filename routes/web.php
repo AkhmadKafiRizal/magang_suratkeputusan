@@ -87,6 +87,7 @@ Route::middleware('auth')->group(function () {
         ->group(function () {
             Route::get('/', 'index')->name('index');
             Route::get('/export-excel', 'export')->name('export');
+            Route::get('/saran-keterangan', 'descriptionSuggestions')->name('description-suggestions');
             Route::get('/tambah', 'create')->name('create');
             Route::post('/', 'store')->name('store');
             Route::get('/{surat}', 'show')->name('show');
@@ -111,8 +112,10 @@ Route::middleware('auth')->group(function () {
         ->controller(SuratSayaController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
+            Route::patch('/status-massal', 'bulkUpdateStatus')->name('bulk-update-status');
             Route::get('/{surat}', 'show')->name('show');
             Route::patch('/{surat}/status', 'updateStatus')->name('update-status');
+            Route::patch('/{surat}/keterangan', 'updateDescription')->name('update-description');
             Route::patch('/{surat}/batalkan-pengambilan', 'batalkanPengambilan')->name('cancel');
         });
 
@@ -121,6 +124,7 @@ Route::middleware('auth')->group(function () {
         ->controller(SuratSayaController::class)
         ->group(function () {
             Route::get('/', 'tersedia')->name('index');
+            Route::post('/ambil-massal', 'bulkAmbil')->name('bulk-ambil');
             Route::post('/{surat}/ambil', 'ambil')->name('ambil');
         });
 

@@ -36,7 +36,7 @@
                 @endif
             </div>
             <div><dt>Status</dt><dd><span class="status-badge status-{{ $surat->status }}">{{ $surat->status_label }}</span></dd></div>
-            <div class="detail-item-full"><dt>Keterangan</dt><dd class="preserve-lines">{{ $surat->keterangan ?: 'Tidak ada keterangan' }}</dd></div>
+            <div class="detail-item-full"><dt>Keterangan</dt><dd class="preserve-lines">{{ filled($surat->keterangan) ? $surat->keterangan : '-' }}</dd></div>
         </dl>
     </section>
 

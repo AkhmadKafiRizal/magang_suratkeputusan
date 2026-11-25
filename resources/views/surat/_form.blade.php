@@ -52,7 +52,10 @@
 
     <div class="form-field form-field-full">
         <label for="keterangan">Keterangan <span class="optional-field">(Opsional)</span></label>
-        <textarea id="keterangan" name="keterangan" rows="3" maxlength="10000" placeholder="Tambahkan keterangan mengenai berkas atau informasi lain jika diperlukan" @class(['is-invalid' => $errors->has('keterangan')]) aria-describedby="keterangan-help{{ $errors->has('keterangan') ? ' keterangan-error' : '' }}" @if($errors->has('keterangan')) aria-invalid="true" @endif>{{ old('keterangan', $surat->keterangan) }}</textarea>
+        <div class="description-autocomplete" data-description-autocomplete data-suggestions-url="{{ route('surat.description-suggestions') }}">
+            <textarea id="keterangan" name="keterangan" rows="3" maxlength="10000" autocomplete="off" placeholder="Tambahkan keterangan mengenai berkas atau informasi lain jika diperlukan" @class(['is-invalid' => $errors->has('keterangan')]) aria-describedby="keterangan-help{{ $errors->has('keterangan') ? ' keterangan-error' : '' }}" aria-autocomplete="list" aria-expanded="false" @if($errors->has('keterangan')) aria-invalid="true" @endif>{{ old('keterangan', $surat->keterangan) }}</textarea>
+            <div class="description-suggestions" role="listbox" hidden data-description-suggestions></div>
+        </div>
         <span class="field-help" id="keterangan-help">Informasi tambahan terkait berkas atau penanganan awal surat.</span>
         @error('keterangan')<span class="field-error" id="keterangan-error">{{ $message }}</span>@enderror
     </div>

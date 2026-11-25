@@ -186,5 +186,6 @@
         </div>
     </div>
     <x-confirmation-modal />
+    <x-bulk-result-modal />
 </body>
 </html>

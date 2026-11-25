@@ -26,6 +26,9 @@
 
     <section class="content-card filter-card" aria-label="Pencarian dan filter surat saya">
         <form class="filter-form" method="GET" action="{{ route('surat-saya.index') }}">
+            @if (in_array((string) request('per_page'), ['10', '25', '50'], true))
+                <input type="hidden" name="per_page" value="{{ request('per_page') }}">
+            @endif
             <div class="filter-search">
                 <div class="filter-label-row">
                     <label for="search">Pencarian</label>
@@ -83,19 +86,44 @@
                 @endif
             </div>
         @else
+            <form id="bulk-status-form" class="bulk-action-bar" method="POST" action="{{ route('surat-saya.bulk-update-status') }}" data-loading-form data-bulk-form data-confirm-title="Update Status Surat Terpilih?" data-confirm-label="Ya, Update Status" data-confirm-loading-label="Memperbarui...">
+                @csrf
+                @method('PATCH')
+                <span><strong data-bulk-count>0</strong> surat terpilih pada halaman ini</span>
+                <label class="sr-only" for="bulk-status">Status tujuan</label>
+                <select id="bulk-status" name="status" required disabled data-bulk-control>
+                    <option value="">Pilih status tujuan</option>
+                    <option value="{{ \App\Models\Surat::STATUS_SEDANG_DIPROSES }}">Sedang Diproses</option>
+                    <option value="{{ \App\Models\Surat::STATUS_SELESAI }}">Selesai</option>
+                </select>
+                <button class="primary-button" type="submit" disabled data-bulk-control data-loading-label="Memperbarui...">Update Status Terpilih</button>
+            </form>
             <div class="table-scroll">
-                <table class="letters-table employee-letters-table">
-                    <thead><tr><th>Nomor Surat</th><th>Tanggal Masuk</th><th>Pemohon / Pengirim</th><th>Kategori</th><th>Status</th><th>Terakhir Diperbarui</th><th>Aksi</th></tr></thead>
+                <table class="letters-table employee-letters-table" data-bulk-table>
+                    <thead><tr><th class="selection-column"><input type="checkbox" data-bulk-select-all aria-label="Pilih semua surat pada halaman ini"></th><th>Nomor Surat</th><th>Tanggal Masuk</th><th>Pemohon / Pengirim</th><th>Kategori</th><th>Status</th><th>Terakhir Diperbarui</th><th>Aksi</th></tr></thead>
                     <tbody>
                         @foreach ($surats as $surat)
                             <tr data-surat-row="{{ $surat->id }}">
+                                <td class="selection-column"><input form="bulk-status-form" name="surat_ids[]" type="checkbox" value="{{ $surat->id }}" data-bulk-item aria-label="Pilih surat {{ $surat->nomor_surat }}"></td>
                                 <td><strong>{{ $surat->nomor_surat }}</strong></td>
                                 <td>{{ $surat->tanggal_masuk->locale('id')->translatedFormat('d M Y') }}</td>
-                                <td class="table-text-wide">{{ $surat->pemohon_pengirim }}</td>
+                                <td class="table-text-wide">
+                                    {{ $surat->pemohon_pengirim }}
+                                    <div class="quick-description-row">
+                                        <button class="quick-description-button" type="button" title="Buka Edit Keterangan Cepat" aria-label="Edit Keterangan surat {{ $surat->nomor_surat }}" data-description-edit data-description-url="{{ route('surat-saya.update-description', $surat) }}" data-description-value="{{ $surat->keterangan }}" data-description-number="{{ $surat->nomor_surat }}">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m4 16-1 5 5-1L19 9l-4-4z"/><path d="m13.5 6.5 4 4"/></svg>
+                                            <span>Edit</span>
+                                        </button>
+                                        <span class="preserve-lines quick-description-copy">{{ filled($surat->keterangan) ? $surat->keterangan : '-' }}</span>
+                                    </div>
+                                </td>
                                 <td>{{ $surat->kategori_label }}</td>
                                 <td>
                                     @if ($surat->status === \App\Models\Surat::STATUS_SELESAI)
-                                        <span class="status-badge status-selesai">Selesai</span>
+                                        <span class="status-badge status-selesai status-final-badge">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 12 4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                            <span>Selesai</span>
+                                        </span>
                                     @else
                                         @php
                                             $sedangDiproses = $surat->status === \App\Models\Surat::STATUS_SEDANG_DIPROSES;
@@ -126,6 +154,7 @@
                                                 class="status-badge quick-status-button status-{{ $surat->status }}"
                                                 type="submit"
                                                 data-loading-label="{{ $sedangDiproses ? 'Menyelesaikan...' : 'Memproses...' }}"
+                                                data-action-label="{{ $sedangDiproses ? 'Selesaikan' : 'Mulai' }}"
                                                 aria-label="{{ $sedangDiproses ? 'Selesaikan' : 'Mulai proses' }} surat {{ $surat->nomor_surat }}"
                                             >{{ $statusLabel }}</button>
                                         </form>
@@ -142,7 +171,8 @@
                     </tbody>
                 </table>
             </div>
-            <div class="pagination-wrap">{{ $surats->links('components.pagination') }}</div>
+            <div class="pagination-wrap">{{ $surats->links('components.pagination', ['showPerPage' => true]) }}</div>
         @endif
     </section>
+    <x-description-editor-modal />
 @endsection
